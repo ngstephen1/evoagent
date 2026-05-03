@@ -45,16 +45,31 @@ def test_part3_dataset(train_ds):
         logging.warning(f'\033[91m[FAIL] Part 3: {str(e)}\033[0m')
         return False
 
+
 def test_part4_translation(translation_fn, model, tokenizer):
     try:
-        output = translation_fn('Hello', strategy='greedy')
+        test_input = 'Hello'
+        output = translation_fn(test_input, strategy='greedy')
+
+        # 1. Check type
         assert isinstance(output, str), 'Translation must return a string'
-        logging.info('\033[92m[SUCCESS] Part 4: Translation logic verified!\033[0m')
+
+        # 2. Check that it's not empty
+        assert len(output.strip()) > 0, 'Translation output is empty'
+
+        # 3. Check that it doesn't contain ChatML tags (Isolation check)
+        forbidden_tokens = ['<|im_start|>', '<|im_end|>', 'assistant', 'system', 'user']
+        for token in forbidden_tokens:
+            assert token not in output, f'Output contains internal ChatML tag or role identifier: {token}'
+
+        # 4. Check that it's not just returning the prompt
+        assert test_input not in output or len(output) < len(test_input) * 2, 'Output looks like it might still contain the full prompt history'
+
+        logging.info('\033[92m[SUCCESS] Part 4: Rigorous translation logic verified!\033[0m')
         return True
     except Exception as e:
         logging.warning(f'\033[91m[FAIL] Part 4: {str(e)}\033[0m')
         return False
-
 def test_part5_icl(few_shot_fn):
     try:
         examples = [('Apple', 'Quả táo'), ('Banana', 'Quả chuối')]
