@@ -1,4 +1,3 @@
-%%writefile unittest_helper.py
 import logging
 import torch
 import torch.nn as nn
