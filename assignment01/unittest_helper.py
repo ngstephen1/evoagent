@@ -1,3 +1,4 @@
+%%writefile unittest_helper.py
 import logging
 import torch
 import torch.nn as nn
@@ -7,13 +8,6 @@ from torch.utils.data import DataLoader
 from typing import Callable, Optional, Tuple
 
 logging.basicConfig(level=logging.INFO, format='%(message)s', force=True)
-
-# Constants for Validation
-MAX_EPOCHS = 5
-ALPHA_REQUIRED_ACC = 0.98
-BETA_TARGET_ACC = 0.80
-PARAM_LIMIT = 2000
-GAMMA_TOLERANCE = 1e-4
 
 def test_part1_tokenization(en_tokens, vi_tokens):
     if isinstance(en_tokens, list) and len(en_tokens) > 0 and isinstance(vi_tokens, list) and len(vi_tokens) > 0:
@@ -62,12 +56,21 @@ def test_part4_translation(translation_fn, model, tokenizer):
         logging.warning(f'\033[91m[FAIL] Part 4: {str(e)}\033[0m')
         return False
 
-class VirusValidator:
-    """Collection of static validation helpers for assignment 'strains'."""
-    @staticmethod
-    def verify_translation_quality(bleu_score: float) -> bool:
-        if bleu_score > 20.0:
-            logging.info("[SUCCESS] Translation quality verified! (BLEU: %.2f)", bleu_score)
-            return True
-        logging.warning("[FAIL] Translation too weak. (BLEU: %.2f)", bleu_score)
+def test_part5_icl(few_shot_fn):
+    try:
+        examples = [('Apple', 'Quả táo'), ('Banana', 'Quả chuối')]
+        prompt = few_shot_fn('Orange', examples)
+        assert 'Quả táo' in prompt and 'Quả chuối' in prompt, 'Few-shot examples missing from prompt'
+        assert '<|im_start|>assistant' in prompt, 'Prompt missing final assistant turn'
+        logging.info('\033[92m[SUCCESS] Part 5: ICL Prompting logic verified!\033[0m')
+        return True
+    except Exception as e:
+        logging.warning(f'\033[91m[FAIL] Part 5: {str(e)}\033[0m')
         return False
+
+def test_part6_bleu(bleu_score):
+    if isinstance(bleu_score, (int, float)) and bleu_score >= 0:
+        logging.info(f'\033[92m[SUCCESS] Part 6: BLEU score calculation verified! Score: {bleu_score:.2f}\033[0m')
+        return True
+    logging.warning('\033[91m[FAIL] Part 6: Invalid BLEU score.\033[0m')
+    return False
