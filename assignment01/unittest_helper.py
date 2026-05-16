@@ -84,14 +84,15 @@ def test_part5_icl(few_shot_fn):
         return False
 
 
-def test_part6_functions(mine_fn, prepare_fn, train_fn, eval_fn):
+def test_part6_hard_negative_signatures(mine_hard_negatives, prepare_hard_dataset, train_hard_negative_model, evaluate_reinforced_model):
     try:
-        assert callable(mine_fn), 'mine_hard_negatives is missing or not callable'
-        assert callable(prepare_fn), 'prepare_hard_dataset is missing or not callable'
-        assert callable(train_fn), 'train_hard_negative_model is missing or not callable'
-        assert callable(eval_fn), 'evaluate_reinforced_model is missing or not callable'
+        assert callable(mine_hard_negatives), 'mine_hard_negatives is missing or not callable'
+        assert callable(prepare_hard_dataset), 'prepare_hard_dataset is missing or not callable'
+        assert callable(train_hard_negative_model), 'train_hard_negative_model is missing or not callable'
+        assert callable(evaluate_reinforced_model), 'evaluate_reinforced_model is missing or not callable'
         logging.info('\033[92m[SUCCESS] Part 6: Hard-negative mining function signatures verified!\033[0m')
         return True
     except AssertionError as e:
-        logging.warning(f'\033[91m[FAIL] Part 6: {str(e)}\033[0m')
+        logging.warning(f"\033[91m[FAIL] Part 6: {str(e)}\033[0m")
         return False
+
