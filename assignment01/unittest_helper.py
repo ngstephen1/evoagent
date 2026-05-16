@@ -70,6 +70,7 @@ def test_part4_translation(translation_fn, model, tokenizer):
     except Exception as e:
         logging.warning(f'\033[91m[FAIL] Part 4: {str(e)}\033[0m')
         return False
+    
 def test_part5_icl(few_shot_fn):
     try:
         examples = [('Apple', 'Quả táo'), ('Banana', 'Quả chuối')]
@@ -82,9 +83,15 @@ def test_part5_icl(few_shot_fn):
         logging.warning(f'\033[91m[FAIL] Part 5: {str(e)}\033[0m')
         return False
 
-def test_part6_bleu(bleu_score):
-    if isinstance(bleu_score, (int, float)) and bleu_score >= 0:
-        logging.info(f'\033[92m[SUCCESS] Part 6: BLEU score calculation verified! Score: {bleu_score:.2f}\033[0m')
+
+def test_part6_functions(mine_fn, prepare_fn, train_fn, eval_fn):
+    try:
+        assert callable(mine_fn), 'mine_hard_negatives is missing or not callable'
+        assert callable(prepare_fn), 'prepare_hard_dataset is missing or not callable'
+        assert callable(train_fn), 'train_hard_negative_model is missing or not callable'
+        assert callable(eval_fn), 'evaluate_reinforced_model is missing or not callable'
+        logging.info('\033[92m[SUCCESS] Part 6: Hard-negative mining function signatures verified!\033[0m')
         return True
-    logging.warning('\033[91m[FAIL] Part 6: Invalid BLEU score.\033[0m')
-    return False
+    except AssertionError as e:
+        logging.warning(f'\033[91m[FAIL] Part 6: {str(e)}\033[0m')
+        return False
