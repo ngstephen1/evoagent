@@ -77,10 +77,10 @@ def test_part4_icl_prompt_construction(few_shot_fn):
         prompt = few_shot_fn('Orange', examples)
         assert 'Quả táo' in prompt and 'Quả chuối' in prompt, 'Few-shot examples missing from prompt'
         assert '<|im_start|>assistant' in prompt, 'Prompt missing final assistant turn'
-        logging.info('\033[92m[SUCCESS] Part 5: ICL Prompting logic verified!\033[0m')
+        logging.info('\033[92m[SUCCESS] Part 4: ICL Prompting logic verified!\033[0m')
         return True
     except Exception as e:
-        logging.warning(f'\033[91m[FAIL] Part 5: {str(e)}\033[0m')
+        logging.warning(f'\033[91m[FAIL] Part 4: {str(e)}\033[0m')
         return False
 
 
@@ -90,9 +90,9 @@ def test_part5_hard_negative_signatures(mine_hard_negatives, prepare_hard_datase
         assert callable(prepare_hard_dataset), 'prepare_hard_dataset is missing or not callable'
         assert callable(train_hard_negative_model), 'train_hard_negative_model is missing or not callable'
         assert callable(evaluate_reinforced_model), 'evaluate_reinforced_model is missing or not callable'
-        logging.info('\033[92m[SUCCESS] Part 6: Hard-negative mining function signatures verified!\033[0m')
+        logging.info('\033[92m[SUCCESS] Part 5: Hard-negative mining function signatures verified!\033[0m')
         return True
     except AssertionError as e:
-        logging.warning(f"\033[91m[FAIL] Part 6: {str(e)}\033[0m")
+        logging.warning(f"\033[91m[FAIL] Part 5: {str(e)}\033[0m")
         return False
 
