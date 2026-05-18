@@ -15,7 +15,7 @@ def test_part1_tokenization(en_tokens, vi_tokens):
     logging.warning('\033[91m[FAIL] Part 1: Tokens are still empty.\033[0m')
     return False
 
-def test_part2_chatml(prompt, response):
+def test_part2_chatml_formatting(prompt, response):
     try:
         assert '<|im_start|>system' in prompt, 'Missing system tag'
         assert '<|im_start|>user' in prompt, 'Missing user tag'
@@ -27,7 +27,7 @@ def test_part2_chatml(prompt, response):
         logging.warning(f'\033[91m[FAIL] Part 2: {str(e)}\033[0m')
         return False
 
-def test_part2_collator(inputs, targets):
+def test_part2_collator_label_masking(inputs, targets):
     if isinstance(inputs, torch.Tensor) and (targets == -100).any():
         logging.info('\033[92m[SUCCESS] Part 2: Collator masking logic verified!\033[0m')
         return True
@@ -46,7 +46,7 @@ def test_part3_dataset(train_ds):
         return False
 
 
-def test_part4_translation(translation_fn, model, tokenizer):
+def test_part4_translation_output(translation_fn, model, tokenizer):
     try:
         test_input = 'Hello'
         output = translation_fn(test_input, strategy='greedy')
@@ -71,7 +71,7 @@ def test_part4_translation(translation_fn, model, tokenizer):
         logging.warning(f'\033[91m[FAIL] Part 4: {str(e)}\033[0m')
         return False
     
-def test_part5_icl(few_shot_fn):
+def test_part4_icl_prompt_construction(few_shot_fn):
     try:
         examples = [('Apple', 'Quả táo'), ('Banana', 'Quả chuối')]
         prompt = few_shot_fn('Orange', examples)
@@ -84,7 +84,7 @@ def test_part5_icl(few_shot_fn):
         return False
 
 
-def test_part6_hard_negative_signatures(mine_hard_negatives, prepare_hard_dataset, train_hard_negative_model, evaluate_reinforced_model):
+def test_part5_hard_negative_signatures(mine_hard_negatives, prepare_hard_dataset, train_hard_negative_model, evaluate_reinforced_model):
     try:
         assert callable(mine_hard_negatives), 'mine_hard_negatives is missing or not callable'
         assert callable(prepare_hard_dataset), 'prepare_hard_dataset is missing or not callable'
