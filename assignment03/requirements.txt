@@ -1,0 +1,15 @@
+# Local CLI and grader dependencies
+modal>=1.0.0
+datasets>=2.18.0
+huggingface-hub>=0.22.0
+pydantic>=2.5.0
+matplotlib>=3.8.0
+numpy>=1.26.0
+sentence-transformers>=2.7.0
+scipy>=1.12.0
+tqdm>=4.66.0
+
+# Modal-only inference stack:
+# Do not install these in the local .venv for the normal cloud workflow.
+# run_modal.py builds from lmsysorg/sglang:v0.5.13, which provides SGLang,
+# the GPU PyTorch stack, Transformers/tokenizer runtime, and CUDA libraries.
