@@ -5,6 +5,7 @@ This document describes the final assessment package uploaded to ThinkFlic after
 ## Deadline and Submitter
 
 - **Deadline:** July 11, 2026 at 23:59 (Asia/Saigon), two days after the Kaggle deadline.
+- **Submit on ThinkFlic:** <https://course.newturing.ai/courses/take/nlp-agent/assignments/76173989-assignment-03-self-improving-ai-for-financial-question-answering>
 - Each team submits exactly one ZIP package.
 - The team chooses one member as the designated ThinkFlic submitter.
 - Individual participants submit their own package.
