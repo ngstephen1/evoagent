@@ -10,6 +10,52 @@ Right now, our biggest bottleneck as a firm is reading dense Vietnamese financia
 
 We have built the skeleton for **EvoAgent**—a self-improving AI loop designed to optimize its own prompt system by reflecting on its own errors and rewriting its logic. 
 
+## Quick Start
+
+The assignment is a folder inside the `Advanced-NLP06` repository. Use Git's
+**sparse checkout** to download only `assignment03` and ignore the other assignments:
+
+```bash
+git clone --depth 1 --filter=blob:none --sparse https://github.com/vietai-courses/Advanced-NLP06.git
+cd Advanced-NLP06
+git sparse-checkout set assignment03
+cd assignment03
+```
+
+Create an isolated Python environment (Python 3.10–3.12 is recommended):
+
+**macOS/Linux**
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+```
+
+**Windows PowerShell**
+
+```powershell
+py -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+```
+
+Confirm that the local CLI is available:
+
+```bash
+python main.py --help
+```
+
+The local environment is intended for editing, lightweight checks, and graders.
+Full model inference uses Modal because the SGLang/CUDA stack requires a suitable
+NVIDIA GPU. Continue with **Phase 1: Booting the Lab** below to configure Modal
+and your Hugging Face token.
+
+> [!IMPORTANT]
+> Never commit access tokens, `.env` files, virtual environments, downloaded model
+> weights, run outputs, or generated proof/submission artifacts. Store `HF_TOKEN`
+> in your shell environment and in a Modal secret as described below.
+
 However, the core logic engine is currently empty. We have left the boilerplate structure intact so you don't have to start from scratch, but you will find `TODO` blocks where the actual AI orchestration needs to go.
 
 **Your Onboarding Mission:**
