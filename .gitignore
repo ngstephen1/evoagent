@@ -1,0 +1,65 @@
+# Python environments and caches
+.venv/
+venv/
+env/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# VS Code SFTP: keep examples, ignore personal live config
+.vscode/sftp.json
+!.vscode/sftp.json.example
+
+# Generated runs, proofs, submissions, and local artifacts
+runs/
+assignment03/runs/*
+!assignment03/runs/.gitkeep
+sandbox_proof.json
+smoke_proof.json
+evolution_proof.json
+submission.csv
+submission.json
+*_details.json
+
+# Model weights, checkpoints, and local ML caches
+models/
+checkpoints/
+cache/
+.cache/
+hf_cache/
+.hf_cache/
+huggingface/
+.huggingface/
+datasets_cache/
+data_cache/
+assignment03/models/
+assignment03/checkpoints/
+assignment03/cache/
+assignment03/.cache/
+assignment03/hf_cache/
+*.safetensors
+*.bin
+*.pt
+*.pth
+*.ckpt
+
+# Archives and packaged submissions
+*.tar
+*.tar.gz
+*.tgz
+*.zip
+*.7z
+
+# Experiment trackers and OS/editor files
+wandb/
+.DS_Store
+Thumbs.db

@@ -91,6 +91,12 @@ python3 main.py --help
 
 The local environment is intended for editing, lightweight checks, and graders. Full model inference is designed to run on Modal because the SGLang/CUDA stack requires a suitable NVIDIA GPU.
 
+## VT ARC GPU Workflow
+
+This fork's preferred GPU execution path is **Virginia Tech ARC TinkerCliffs** using A100/H200 GPU nodes. Modal remains available through the original assignment files, especially `assignment03/run_modal.py`, but ARC is the recommended path for interactive inference, proof-generation experiments, and Kaggle runs in this repository.
+
+Start with [`docs/ARC_GPU_WORKFLOW.md`](docs/ARC_GPU_WORKFLOW.md). It covers SSH/SFTP setup, interactive A100 allocation, environment setup, safe Hugging Face token handling, monitoring, proof-generation command mapping, and troubleshooting.
+
 ## Local Graders
 
 Run staged checks from `assignment03/`:
