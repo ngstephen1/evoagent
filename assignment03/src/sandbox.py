@@ -105,8 +105,20 @@ def run_sandbox_prediction(model_name: str = "QuantTrio/Qwen3.5-4B-AWQ") -> tupl
       - Do not extract the DSL program inside this function.
       - Keep the generation deterministic with temperature=0.0.
     """
-    # --- YOUR CODE HERE ---
-    raise NotImplementedError("run_sandbox_prediction() is not implemented yet.")
+    train_split, _ = load_data_splits(train_size=1, dev_size=1)
+    if len(train_split) == 0:
+        raise ValueError("Training split is empty; cannot run sandbox prediction.")
+
+    example = train_split[0]
+    passage = example.get("context") or ""
+    question = example.get("question") or ""
+    gold_program = example.get("answer") or ""
+
+    model = get_model(model_name)
+    prompt = _build_sandbox_prompt(model, passage, question)
+    raw_response = model.generate_text(prompt, max_new_tokens=256, temperature=0.0)
+
+    return raw_response, gold_program
 
 def run_sandbox_accuracy_check(model: QwenInference, dev_size: int = 50) -> dict:
     """Evaluate zero-shot baseline accuracy on the development split."""

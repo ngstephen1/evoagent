@@ -82,10 +82,17 @@ def _build_reflect_message(strategy: Strategy, eval_result: EvalResult, progress
     # - Else:
     #   - select top_k = 5 failures
     # ----------------------------------------------------------------
-    # --- YOUR CODE HERE ---
-    top_k = 5 # Placeholder
-
     iteration = strategy.metadata.iteration
+    if progressive:
+        if iteration <= 1:
+            top_k = 5
+        elif iteration == 2:
+            top_k = 3
+        else:
+            top_k = 1
+    else:
+        top_k = 5
+
     logger.info("Self-Reflector Progressive Context: iteration=%d, selected top_k=%d failures.", iteration, top_k)
     failures = eval_result.failures(top_k=top_k)
     lines.append("\n=== Các lỗi sai tiêu biểu ===")
@@ -131,6 +138,148 @@ def reflect_self(
       5. Validate and parse the returned JSON into the Reflection class.
       6. Return Reflection object and estimated token usage.
     """
-    # --- YOUR CODE HERE ---
-    # Delete the raise statement below and replace it with your implementation.
-    raise NotImplementedError("reflect_self() is not implemented yet.")
+    reflect_message = _build_reflect_message(strategy, eval_result, progressive=progressive)
+    raw_response = ""
+    last_error: Optional[Exception] = None
+
+    for attempt in range(max_retries):
+        try:
+            analysis_prompt = model.format_prompt(
+                system_message=_SYSTEM_REFLECT,
+                user_message=reflect_message,
+                enable_thinking=True,
+            )
+            raw_analysis = model.generate_text(
+                analysis_prompt,
+                max_new_tokens=1024,
+                temperature=0.7,
+            )
+            cleaned_analysis = _strip_thinking(raw_analysis)
+
+            coercion_message = (
+                "Chuyển phân tích sau thành JSON hợp lệ theo schema ReflectionSchema. "
+                "Chỉ trả về JSON, không thêm markdown hoặc giải thích.\n\n"
+                f"Schema fields: accuracy_by_type, failure_patterns, hypothesis, summary.\n\n"
+                f"Độ chính xác theo loại hiện có: {json.dumps(eval_result.accuracy_by_type, ensure_ascii=False)}\n\n"
+                f"Phân tích:\n{cleaned_analysis}"
+            )
+            coercion_prompt = model.format_prompt(
+                system_message=_SYSTEM_REFLECT,
+                user_message=coercion_message,
+                enable_thinking=False,
+            )
+            raw_response = model.generate_text(
+                coercion_prompt,
+                max_new_tokens=512,
+                temperature=0.0,
+                guided_json=ReflectionSchema.model_json_schema(),
+            )
+
+            parsed = _parse_reflection_schema(raw_response)
+            top_failures = [_failure_to_dict(f) for f in eval_result.failures(top_k=5)]
+            reflection = Reflection(
+                strategy_id=strategy.id,
+                accuracy_by_type=parsed.accuracy_by_type,
+                top_failures=top_failures,
+                hypothesis=parsed.hypothesis,
+                summary=parsed.summary,
+                raw_response=raw_response,
+            )
+            token_usage = _estimate_meta_tokens(
+                model,
+                analysis_prompt,
+                raw_analysis,
+                coercion_prompt,
+                raw_response,
+            )
+            return reflection, token_usage
+        except Exception as exc:
+            last_error = exc
+            logger.warning(
+                "Reflection attempt %d/%d failed: %s",
+                attempt + 1,
+                max_retries,
+                exc,
+            )
+
+    logger.warning("Falling back to heuristic reflection after parse failures: %s", last_error)
+    return _fallback_reflection(strategy, eval_result, raw_response), 0
+
+
+def _strip_thinking(text: str) -> str:
+    """Remove Qwen-style thinking blocks and return concise visible content."""
+    if not text:
+        return ""
+    text = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL)
+    text = re.sub(r"<think>.*$", "", text, flags=re.DOTALL)
+    return text.strip()
+
+
+def _extract_json_object(text: str) -> dict:
+    if not text:
+        raise ValueError("Empty reflection response")
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        pass
+
+    match = re.search(r"\{.*\}", text, flags=re.DOTALL)
+    if not match:
+        raise ValueError("No JSON object found in reflection response")
+    return json.loads(match.group(0))
+
+
+def _parse_reflection_schema(text: str) -> ReflectionSchema:
+    data = _extract_json_object(_strip_thinking(text))
+    return ReflectionSchema.model_validate(data)
+
+
+def _failure_to_dict(failure) -> dict:
+    return {
+        "question_id": failure.question_id,
+        "question": failure.question,
+        "gold_answer": failure.gold_answer,
+        "predicted_answer": failure.predicted_answer,
+        "question_type": failure.question_type,
+        "gold_val": failure.gold_val,
+        "predicted_val": failure.predicted_val,
+        "raw_output": failure.raw_output,
+    }
+
+
+def _estimate_meta_tokens(model, *texts: str) -> int:
+    total = 0
+    for text in texts:
+        if not text:
+            continue
+        try:
+            total += int(model.count_tokens(text))
+        except Exception:
+            total += max(1, len(text.split()))
+    return total
+
+
+def _fallback_reflection(strategy: Strategy, eval_result: EvalResult, raw_response: str = "") -> Reflection:
+    weakest_type = "unknown"
+    if eval_result.accuracy_by_type:
+        weakest_type = min(eval_result.accuracy_by_type, key=eval_result.accuracy_by_type.get)
+
+    top_failures = [_failure_to_dict(f) for f in eval_result.failures(top_k=5)]
+    failure_patterns = sorted({f.get("question_type", "unknown") for f in top_failures}) or ["unknown"]
+    hypothesis = (
+        f"Chiến lược hiện tại yếu nhất ở nhóm {weakest_type}; cần làm rõ cách trích xuất số, "
+        "chọn phép toán và định dạng DSL để giảm lỗi."
+    )
+    summary = (
+        "Fallback reflection: không thể parse JSON từ meta-agent, nên dùng thống kê "
+        f"đánh giá hiện có. Accuracy tổng là {eval_result.accuracy:.3f}; "
+        f"các mẫu lỗi nổi bật: {', '.join(failure_patterns)}."
+    )
+    return Reflection(
+        strategy_id=strategy.id,
+        accuracy_by_type=dict(eval_result.accuracy_by_type),
+        top_failures=top_failures,
+        hypothesis=hypothesis,
+        summary=summary,
+        raw_response=raw_response,
+    )

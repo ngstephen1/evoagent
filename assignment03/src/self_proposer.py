@@ -83,9 +83,124 @@ def _is_valid_dsl_program(program: str) -> bool:
 
     TODO: Implement this validation check.
     """
-    # --- YOUR CODE HERE ---
-    # Delete the raise statement below and replace it with your implementation.
-    raise NotImplementedError("_is_valid_dsl_program() is not implemented yet.")
+    if not program or not isinstance(program, str):
+        return False
+
+    text = program.strip()
+    if not text:
+        return False
+
+    if any(symbol in text for symbol in ["=", "+", "*", "/"]):
+        return False
+
+    if not _minus_signs_are_numeric(text):
+        return False
+
+    valid_ops = {
+        "add",
+        "subtract",
+        "multiply",
+        "divide",
+        "table_average",
+        "table_max",
+        "table_min",
+        "table_sum",
+        "exp",
+        "greater",
+        "abs",
+    }
+
+    steps = _split_dsl_steps(text)
+    if not steps:
+        return False
+
+    for step_idx, step in enumerate(steps):
+        match = re.fullmatch(r"\s*([A-Za-z_][A-Za-z0-9_]*)\((.*)\)\s*", step)
+        if not match:
+            return False
+
+        op, args_text = match.group(1), match.group(2)
+        if op not in valid_ops:
+            return False
+        if "(" in args_text or ")" in args_text:
+            return False
+
+        args = [arg.strip() for arg in args_text.split(",")]
+        if not all(args):
+            return False
+
+        if op.startswith("table_"):
+            if len(args) != 2:
+                return False
+            if args[0].lower() == "none" and args[1].lower() == "none":
+                return False
+        elif op == "abs":
+            if len(args) != 1:
+                return False
+        else:
+            if len(args) != 2:
+                return False
+
+        for arg in args:
+            if arg.lower() == "none":
+                continue
+            if re.fullmatch(r"#\d+", arg):
+                if int(arg[1:]) >= step_idx:
+                    return False
+                continue
+            if _looks_like_number(arg):
+                continue
+            if op.startswith("table_"):
+                continue
+            return False
+
+    return True
+
+
+def _split_dsl_steps(program: str) -> list[str]:
+    steps: list[str] = []
+    start = 0
+    depth = 0
+
+    for idx, char in enumerate(program):
+        if char == "(":
+            depth += 1
+        elif char == ")":
+            depth -= 1
+            if depth < 0:
+                return []
+        elif char == "," and depth == 0:
+            step = program[start:idx].strip()
+            if step:
+                steps.append(step)
+            start = idx + 1
+
+    if depth != 0:
+        return []
+
+    final_step = program[start:].strip()
+    if final_step:
+        steps.append(final_step)
+    return steps
+
+
+def _looks_like_number(value: str) -> bool:
+    return bool(re.fullmatch(r"-?(?:\d+(?:\.\d*)?|\.\d+)", value.strip()))
+
+
+def _minus_signs_are_numeric(program: str) -> bool:
+    for match in re.finditer("-", program):
+        idx = match.start()
+        next_char = program[idx + 1] if idx + 1 < len(program) else ""
+        if not next_char.isdigit():
+            return False
+
+        prev_idx = idx - 1
+        while prev_idx >= 0 and program[prev_idx].isspace():
+            prev_idx -= 1
+        if prev_idx >= 0 and program[prev_idx] not in {"(", ","}:
+            return False
+    return True
 
 
 def _build_propose_message(history: StrategyHistory, parent_strategy_id: Optional[str] = None) -> str:
@@ -223,6 +338,236 @@ def propose_self(
       7. Validate generated/extracted few-shot programs using _is_valid_dsl_program().
       8. Return a new Strategy object and meta token usage.
     """
-    # --- YOUR CODE HERE ---
-    # Delete the raise statement below and replace it with your implementation.
-    raise NotImplementedError("propose_self() is not implemented yet.")
+    parent_strategy = _resolve_parent_strategy(history, parent_strategy_id)
+    proposal_message = _build_propose_message(history, parent_strategy_id=parent_strategy.id if parent_strategy else None)
+    raw_proposal = ""
+    raw_json = ""
+    proposal: Optional[ProposerSchema] = None
+    meta_texts: list[str] = []
+
+    for attempt in range(max_retries):
+        try:
+            proposal_prompt = model.format_prompt(
+                system_message=_SYSTEM_PROPOSE,
+                user_message=proposal_message,
+                enable_thinking=True,
+            )
+            raw_proposal = model.generate_text(
+                proposal_prompt,
+                max_new_tokens=1024,
+                temperature=0.7,
+            )
+            cleaned_proposal = _strip_thinking(raw_proposal)
+
+            coercion_message = (
+                "Convert the following strategy proposal into valid JSON for ProposerSchema. "
+                "Return only JSON with keys: hypothesis, instruction_phrasing, cot_format, "
+                "few_shot_examples, reasoning.\n\n"
+                f"Allowed cot_format values: {sorted(_VALID_COT)}\n\n"
+                f"Proposal:\n{cleaned_proposal}"
+            )
+            coercion_prompt = model.format_prompt(
+                system_message=_SYSTEM_PROPOSE,
+                user_message=coercion_message,
+                enable_thinking=False,
+            )
+            raw_json = model.generate_text(
+                coercion_prompt,
+                max_new_tokens=512,
+                temperature=0.0,
+                guided_json=ProposerSchema.model_json_schema(),
+            )
+            proposal = _parse_proposer_schema(raw_json)
+            meta_texts.extend([proposal_prompt, raw_proposal, coercion_prompt, raw_json])
+            break
+        except Exception as exc:
+            logger.warning("Strategy proposal attempt %d/%d failed: %s", attempt + 1, max_retries, exc)
+
+    if proposal is None:
+        proposal = _fallback_proposer_schema(parent_strategy)
+
+    weakest_category = _weakest_category(history.latest_reflection())
+    few_shots = list(parent_strategy.few_shot_examples) if parent_strategy else []
+    few_shots.extend(_valid_schema_few_shots(proposal.few_shot_examples, limit=2))
+    dynamic_examples, reasoning_texts = _dynamic_few_shots(
+        train_dataset=train_dataset,
+        category=weakest_category,
+        model=model,
+        limit=2,
+    )
+    few_shots.extend(dynamic_examples)
+    meta_texts.extend(reasoning_texts)
+
+    cot_value = proposal.cot_format if proposal.cot_format in _VALID_COT else None
+    if cot_value is None and parent_strategy is not None:
+        cot_format = parent_strategy.cot_format
+    else:
+        cot_format = CoTFormat(cot_value or CoTFormat.NONE.value)
+
+    prompt_template = _clean_instruction_phrasing(proposal.instruction_phrasing)
+    if not prompt_template and parent_strategy is not None:
+        prompt_template = parent_strategy.prompt_template
+    elif not prompt_template:
+        prompt_template = "Bạn là chuyên gia phân tích tài chính. Hãy trả về chương trình DSL hợp lệ."
+
+    token_usage = _estimate_tokens(model, *meta_texts)
+    metadata = StrategyMetadata(
+        iteration=len(history.strategies),
+        parent_id=parent_strategy.id if parent_strategy else None,
+        token_cost_claude=token_usage,
+    )
+
+    return (
+        Strategy(
+            id=str(uuid.uuid4()),
+            prompt_template=prompt_template,
+            cot_format=cot_format,
+            few_shot_examples=few_shots,
+            retrieval_config=parent_strategy.retrieval_config if parent_strategy else RetrievalConfig(enabled=False),
+            metadata=metadata,
+        ),
+        token_usage,
+    )
+
+
+def _resolve_parent_strategy(history: StrategyHistory, parent_strategy_id: Optional[str]) -> Optional[Strategy]:
+    if parent_strategy_id is not None:
+        for strategy in history.strategies:
+            if strategy.id == parent_strategy_id:
+                return strategy
+    return history.latest_strategy()
+
+
+def _strip_thinking(text: str) -> str:
+    if not text:
+        return ""
+    text = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL)
+    text = re.sub(r"<think>.*$", "", text, flags=re.DOTALL)
+    return text.strip()
+
+
+def _extract_json_object(text: str) -> dict:
+    cleaned = _strip_thinking(text)
+    if not cleaned:
+        raise ValueError("Empty proposer response")
+    try:
+        return json.loads(cleaned)
+    except json.JSONDecodeError:
+        pass
+
+    match = re.search(r"\{.*\}", cleaned, flags=re.DOTALL)
+    if not match:
+        raise ValueError("No JSON object found in proposer response")
+    return json.loads(match.group(0))
+
+
+def _parse_proposer_schema(text: str) -> ProposerSchema:
+    data = _extract_json_object(text)
+    return ProposerSchema.model_validate(data)
+
+
+def _fallback_proposer_schema(parent_strategy: Optional[Strategy]) -> ProposerSchema:
+    instruction = (
+        parent_strategy.prompt_template
+        if parent_strategy is not None
+        else "Bạn là chuyên gia phân tích tài chính. Hãy trả về chương trình DSL hợp lệ."
+    )
+    cot = parent_strategy.cot_format.value if parent_strategy is not None else CoTFormat.NONE.value
+    return ProposerSchema(
+        hypothesis="Fallback strategy: keep the parent prompt and add targeted examples from weak categories.",
+        instruction_phrasing=instruction,
+        cot_format=cot,
+        few_shot_examples=[],
+        reasoning="Model proposal could not be parsed, so reuse the safest available parent strategy.",
+    )
+
+
+def _weakest_category(reflection) -> str:
+    if reflection is not None and reflection.accuracy_by_type:
+        return min(reflection.accuracy_by_type, key=reflection.accuracy_by_type.get)
+    return "other"
+
+
+def _valid_schema_few_shots(examples: list[FewShotExampleSchema], limit: int) -> list[FewShotExample]:
+    selected: list[FewShotExample] = []
+    for ex in examples:
+        if not _is_valid_dsl_program(ex.answer):
+            continue
+        selected.append(
+            FewShotExample(
+                passage=ex.passage,
+                question=ex.question,
+                answer=ex.answer,
+                reasoning=ex.reasoning,
+            )
+        )
+        if len(selected) >= limit:
+            break
+    return selected
+
+
+def _dynamic_few_shots(
+    train_dataset: Optional[Dataset],
+    category: str,
+    model,
+    limit: int = 2,
+) -> tuple[list[FewShotExample], list[str]]:
+    if train_dataset is None or limit <= 0:
+        return [], []
+
+    selected: list[FewShotExample] = []
+    token_texts: list[str] = []
+
+    for row in train_dataset:
+        row_dict = dict(row)
+        answer = (row_dict.get("answer") or "").strip()
+        if classify_question_type(answer) != category:
+            continue
+        if not _is_valid_dsl_program(answer):
+            continue
+
+        passage = row_dict.get("context") or ""
+        question = row_dict.get("question") or ""
+        reasoning = generate_few_shot_reasoning(
+            passage=passage,
+            question=question,
+            program=answer,
+            category=category,
+            model=model,
+        )
+        token_texts.append(reasoning)
+        extracted = extract_answer(reasoning)
+        if extracted and normalize_program(extracted) != normalize_program(answer):
+            reasoning = f"Bài toán thuộc nhóm {category}. Thực hiện phép tính theo chương trình DSL."
+
+        selected.append(
+            FewShotExample(
+                passage=passage,
+                question=question,
+                answer=answer,
+                reasoning=reasoning,
+            )
+        )
+        if len(selected) >= limit:
+            break
+
+    return selected, token_texts
+
+
+def _clean_instruction_phrasing(text: str) -> str:
+    if not text:
+        return ""
+    cleaned = re.sub(r"\{(?:passage|question|few_shot_block|cot_instruction)\}", "", text)
+    return re.sub(r"\n{3,}", "\n\n", cleaned).strip()
+
+
+def _estimate_tokens(model, *texts: str) -> int:
+    total = 0
+    for text in texts:
+        if not text:
+            continue
+        try:
+            total += int(model.count_tokens(text))
+        except Exception:
+            total += max(1, len(text.split()))
+    return total

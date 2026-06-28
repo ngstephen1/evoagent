@@ -99,23 +99,21 @@ class TokenBudget:
         TODO: Implement this method to accumulate token usage from an EvalResult
         into qwen_input and qwen_output.
         """
-        # --- YOUR CODE HERE ---
-        pass
+        self.qwen_input += result.total_input_tokens
+        self.qwen_output += result.total_output_tokens
 
     def add_meta(self, tokens: int) -> None:
         """
         TODO: Implement this method to accumulate meta-agent token usage (reflect/propose).
         """
-        # --- YOUR CODE HERE ---
-        pass
+        self.meta_total += tokens
 
     @property
     def qwen_total(self) -> int:
         """
         TODO: Return the sum of qwen_input and qwen_output tokens.
         """
-        # --- YOUR CODE HERE ---
-        return 0
+        return self.qwen_input + self.qwen_output
 
     def summary(self) -> str:
         return (
@@ -319,9 +317,131 @@ def evaluate(
     logger.info("Evaluating strategy %s on %s split.", strategy.id[:8], split)
     start_time = time.time()
 
-    # --- YOUR CODE HERE ---
-    # Delete the raise statement below and replace it with your implementation.
-    raise NotImplementedError("evaluate() is not implemented yet.")
+    eval_items: list[dict[str, Any]] = []
+    prompts: list[str] = []
+    enable_thinking = strategy.cot_format != CoTFormat.NONE
+
+    for row_idx, row in enumerate(dataset):
+        row_dict = dict(row)
+        question_id = str(row_dict.get("id", row_idx))
+        parsed_questions = _parse_row(row_dict, row_idx)
+
+        for sub_idx, (passage, question, gold, q_type, table, exe_ans) in enumerate(parsed_questions):
+            item_question_id = question_id if len(parsed_questions) == 1 else f"{question_id}_{sub_idx}"
+            user_message = build_prompt(strategy, passage, question)
+            formatted_prompt = model.format_prompt(
+                system_message=_SYSTEM_MESSAGE,
+                user_message=user_message,
+                enable_thinking=enable_thinking,
+            )
+            prompts.append(formatted_prompt)
+            eval_items.append(
+                {
+                    "question_id": item_question_id,
+                    "passage": passage,
+                    "question": question,
+                    "gold": gold,
+                    "q_type": q_type,
+                    "table": table,
+                    "exe_ans": exe_ans,
+                }
+            )
+
+    generation_results = model.generate_batch(prompts, cot_format=enable_thinking) if prompts else []
+
+    per_question: list[QuestionResult] = []
+    correct_by_type: dict[str, int] = {}
+    count_by_type: dict[str, int] = {}
+    total_input_tokens = 0
+    total_output_tokens = 0
+    num_correct = 0
+
+    for idx, item in enumerate(eval_items):
+        gen = generation_results[idx] if idx < len(generation_results) else None
+        raw_output = gen.raw_output if gen is not None else ""
+        predicted_answer = gen.predicted_answer if gen is not None else extract_answer(raw_output)
+        input_tokens = gen.input_tokens if gen is not None else 0
+        output_tokens = gen.output_tokens if gen is not None else 0
+
+        gold = item["gold"]
+        table = item["table"]
+        exe_ans = item["exe_ans"]
+        q_type = item["q_type"]
+
+        total_input_tokens += input_tokens
+        total_output_tokens += output_tokens
+        count_by_type[q_type] = count_by_type.get(q_type, 0) + 1
+
+        gold_val: Optional[float] = None
+        predicted_val: Optional[float] = None
+
+        if exe_ans not in (None, ""):
+            try:
+                gold_val = float(exe_ans)
+            except (TypeError, ValueError):
+                gold_val = None
+        if gold_val is None and gold:
+            try:
+                gold_val = evaluate_program(gold, table)
+            except Exception:
+                gold_val = None
+
+        if predicted_answer:
+            try:
+                predicted_val = evaluate_program(predicted_answer, table)
+            except Exception:
+                predicted_val = None
+
+        exact_match = normalize_program(predicted_answer) == normalize_program(gold)
+        value_match = (
+            predicted_val is not None
+            and gold_val is not None
+            and abs(predicted_val - gold_val) <= 1e-4
+        )
+        is_correct = bool(predicted_answer and (value_match or exact_match))
+
+        if is_correct:
+            num_correct += 1
+            correct_by_type[q_type] = correct_by_type.get(q_type, 0) + 1
+
+        per_question.append(
+            QuestionResult(
+                question_id=item["question_id"],
+                passage=item["passage"],
+                question=item["question"],
+                gold_answer=gold,
+                predicted_answer=predicted_answer,
+                is_correct=is_correct,
+                raw_output=raw_output,
+                question_type=q_type,
+                input_tokens=input_tokens,
+                output_tokens=output_tokens,
+                gold_val=gold_val,
+                predicted_val=predicted_val,
+            )
+        )
+
+    accuracy_by_type = {
+        q_type: correct_by_type.get(q_type, 0) / count
+        for q_type, count in count_by_type.items()
+        if count > 0
+    }
+    num_examples = len(eval_items)
+    accuracy = num_correct / num_examples if num_examples else 0.0
+
+    return EvalResult(
+        strategy_id=strategy.id,
+        split=split,
+        num_examples=num_examples,
+        num_correct=num_correct,
+        accuracy=accuracy,
+        accuracy_by_type=accuracy_by_type,
+        count_by_type=count_by_type,
+        per_question=per_question,
+        total_input_tokens=total_input_tokens,
+        total_output_tokens=total_output_tokens,
+        elapsed_seconds=time.time() - start_time,
+    )
 
 
 # ------------------------------------------------------------------
