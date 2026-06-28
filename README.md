@@ -32,7 +32,7 @@ The project combines local graders for staged development with Modal GPU executi
 
 | Milestone | Points | What it requires | Status |
 | --- | ---: | --- | --- |
-| EvoAgent Implementation | 6 | Complete staged EvoAgent components, run local graders, and generate Modal proof artifacts. | In progress |
+| EvoAgent Implementation | 6 | Complete staged EvoAgent components, run local graders, and generate Modal proof artifacts. | Local stages implemented; Modal proofs pending |
 | Kaggle Competition | 4 | Produce valid hidden-test predictions and compete on the private leaderboard. | Pending |
 | ThinkFlic Final Submission | - | Package source code, report, evidence, Kaggle artifacts, and integrity materials. | Pending |
 
@@ -104,17 +104,17 @@ PYTHONPATH=. python3 graders/grade_smoke_proof.py
 python3 graders/grade_stage4_harness.py
 ```
 
-`grade_smoke_proof.py` may require `PYTHONPATH=.` when run directly. Proof-dependent graders require their corresponding Modal-generated JSON artifacts.
+`grade_smoke_proof.py` may require `PYTHONPATH=.` when run directly. Proof-dependent graders require their corresponding Modal-generated JSON artifacts, so Stage 0/Stage 4 proof checks are expected to remain incomplete until Modal runs are finished.
 
 ## Current Implementation Status
 
 | Component | Status | Notes |
 | --- | --- | --- |
 | Stage 0 Sandbox | Local implementation test passes | `sandbox_proof.json` is pending Modal generation. |
-| Stage 1 Executor | Local grader passes | Token accounting and evaluation loop are implemented on this branch. |
-| Stage 2 Reflection | Pending | Next staged implementation after Stage 1 on `feature/stage1-executor`. |
-| Stage 3 Proposal | Pending | Dynamic few-shot proposal is not implemented on this branch. |
-| Stage 4 Harness / Evolution | Pending | Smoke proof and full evolution proof are not generated yet. |
+| Stage 1 Executor | Local grader passes | Token accounting and evaluation loop are implemented. |
+| Stage 2 Reflection | Local grader passes | Self-reflection and fallback parsing are implemented. |
+| Stage 3 Proposal | Local grader passes | DSL validation and dynamic few-shot proposal are implemented. |
+| Stage 4 Harness / Evolution | Local implementation checks pass | `smoke_proof.json` and `evolution_proof.json` are pending Modal generation. |
 | Kaggle | Pending | No Kaggle score or final submission is claimed. |
 
 ## Modal and Proof Generation
@@ -179,4 +179,3 @@ The final ThinkFlic package should follow [`assignment03/docs/THINKFLIC_SUBMISSI
 ## Academic Integrity
 
 This is a course assignment repository. All work should follow the VietAI course rules, Kaggle competition rules, and the assignment's test-data boundary: do not retrieve, reconstruct, manually label, leak, or share hidden test answers.
-
