@@ -73,7 +73,7 @@ ARC target:
 
 ```text
 Host: tinkercliffs1.arc.vt.edu
-Remote path: /home/stephenallstar24/temp/evoagent
+Remote path: /home/<VT_PID>/temp/evoagent
 Allocation: llms-lab
 Partition: a100_normal_q
 QoS: tc_a100_normal_short
