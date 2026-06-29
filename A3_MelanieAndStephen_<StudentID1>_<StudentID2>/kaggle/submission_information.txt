@@ -1,0 +1,71 @@
+VietAI Advanced NLP06 Assignment 03 - Kaggle Submission Information
+
+Team:
+- Melanie
+  - Student ID: TBD
+  - Kaggle ID: yeyeezyzeus
+- Nguyen Phan Nguyen - Stephen
+  - Student ID: TBD
+  - Kaggle ID: nguynphannguyn
+
+Primary final Kaggle file:
+- kaggle/final_submission.csv
+
+Source artifact:
+- assignment03/runs/kaggle_hybrid_001_002/submission_checked.csv
+
+Primary public score:
+- 0.64574
+
+Final private score/rank:
+- TBD after Kaggle private leaderboard is released.
+
+Alternate candidate:
+- assignment03/runs/kaggle_hybrid_003_004/submission_checked.csv
+- Public score: 0.64574
+- Role: alternate/private-leaderboard hedge only.
+
+Experiment summary:
+
+Run001:
+- Method: EvoAgent ARC best strategy baseline.
+- File: assignment03/runs/kaggle_arc_best/submission_checked.csv
+- Public score: 0.56477
+
+Run002:
+- Method: iter003 non-CoT table-op strategy.
+- File: assignment03/runs/kaggle_iter003/submission_checked.csv
+- Public score: 0.47975
+
+Run003:
+- Method: hybrid Run001 fallback to Run002 nonzero predictions.
+- File: assignment03/runs/kaggle_hybrid_001_002/submission_checked.csv
+- Public score: 0.64574
+- Decision: primary final candidate.
+
+Run004:
+- Method: hybrid Run003 fallback to iter004 nonzero predictions.
+- File: assignment03/runs/kaggle_hybrid_003_004/submission_checked.csv
+- Public score: 0.64574
+- Decision: alternate only.
+
+Run005:
+- Method: conservative numeric post-processing over Run003.
+- File: assignment03/runs/kaggle_postprocess_run005/submission_checked.csv
+- Public score: 0.64170
+- Decision: not final.
+
+Run006:
+- Method: context-expanded rerun of Run001 strategy.
+- File: assignment03/runs/kaggle_run006_iterbest_ctx32768/submission_checked.csv
+- Kaggle status: not submitted.
+
+Run007:
+- Method: tiny hybrid Run003 fallback to Run006 nonzero predictions.
+- File: assignment03/runs/kaggle_hybrid_003_006/submission_checked.csv
+- Kaggle status: not submitted.
+
+Final choice rationale:
+- Hybrid fallback ensembling produced the strongest public score.
+- Broad numeric post-processing reduced public score.
+- Later same-run ensembling plateaued and did not justify replacing Run003.

@@ -4,6 +4,22 @@ This log records Kaggle-facing experiments for Assignment 03 Phase 3. Each run
 should include the strategy or pipeline used, validation checks, Kaggle result,
 and enough reproduction detail to audit the submission later.
 
+## Experiment Freeze
+
+Kaggle experimentation is frozen after Run 007. Do not create or submit more
+Kaggle runs unless the team explicitly reopens Phase 3 experimentation.
+
+Final Kaggle candidates:
+
+| Role | Run | File | Public Score | Decision |
+|---|---|---|---:|---|
+| Primary final | Run 003 | `assignment03/runs/kaggle_hybrid_001_002/submission_checked.csv` | 0.64574 | Use as primary final Kaggle file. |
+| Alternate / private hedge | Run 004 | `assignment03/runs/kaggle_hybrid_003_004/submission_checked.csv` | 0.64574 | Keep as alternate only. |
+
+Summary interpretation: hybrid fallback ensembling was the strongest method.
+Broad numeric post-processing hurt public score, and further same-run ensembling
+plateaued without producing a clearly better candidate.
+
 ## Run 001 - EvoAgent ARC Best Strategy Baseline
 
 | Field | Value |
@@ -186,7 +202,8 @@ Run 004 is structurally valid but did not improve the public leaderboard score.
 It may or may not help on the private leaderboard, but the public result shows
 that patching the last few zero-valued rows is not automatically beneficial.
 Current best remains Run 003 because it achieved the same public score with a
-simpler and better-validated fallback rule.
+simpler and better-validated fallback rule. Keep Run 004 as an alternate only
+if final submission selection allows multiple candidate choices.
 
 ## Run 005 - Hybrid Run003 Conservative Numeric Postprocess
 
@@ -227,18 +244,113 @@ Enabled rules:
 ### Interpretation
 
 The post-processing rules were structurally valid and mostly conservative, but
-public score dropped from 0.64574 to 0.64170. This suggests some apparent dev
-failure patterns, especially sign and percent-point corrections, do not
-generalize cleanly to public test. Current best remains Run 003. Future
-post-processing should be tested as optional ablations and should prefer
-rules with stronger public/test-aligned evidence.
+the 14 changed rows reduced public score from 0.64574 to 0.64170. This suggests
+some apparent dev failure patterns, especially sign and percent-point
+corrections, do not generalize cleanly to public test. Do not use Run 005 as
+the final submission. Current best remains Run 003/Run 004 at 0.64574, with
+Run 003 preferred as the primary final candidate because it is simpler and
+clearly improves over the baseline. Future post-processing should be treated as
+optional ablations and should prefer rules with stronger public/test-aligned
+evidence.
+
+## Run 006 - IterBest Context-Expanded Rerun
+
+| Field | Value |
+|---|---|
+| Date | 2026-06-29 |
+| Branch | `integration/evoagent-arc` |
+| Commit | Pending |
+| Compute | VT ARC GPU |
+| Model | `QuantTrio/Qwen3.5-4B-AWQ` |
+| Strategy file | `assignment03/runs/exp_self_arc/iter_best_strategy.json` |
+| Method | Re-run best Run001 strategy with larger context window |
+| Output file | `assignment03/runs/kaggle_run006_iterbest_ctx32768/submission.csv` |
+| Checked file | `assignment03/runs/kaggle_run006_iterbest_ctx32768/submission_checked.csv` |
+| Details file | `assignment03/runs/kaggle_run006_iterbest_ctx32768/submission_details.json` |
+| Kaggle status | `NOT SUBMITTED` |
+| Public score | Not submitted |
+| Private score | Not submitted |
+| Row count | 494 |
+
+### Generation Command
+
+Run from `assignment03/` on an ARC GPU node:
+
+```bash
+python3 submit.py \
+  --strategy-path ./runs/exp_self_arc/iter_best_strategy.json \
+  --output-file ./runs/kaggle_run006_iterbest_ctx32768/submission.csv \
+  --model QuantTrio/Qwen3.5-4B-AWQ \
+  --gpu-memory-utilization 0.85 \
+  --max-model-len 32768
+```
+
+### Validation Notes
+
+- Local validation found 494 rows in official `data/test.json` order.
+- No duplicate IDs, no missing values, and all predictions were numeric.
+- Standalone Run006 had 122 zero-valued predictions, worse than Run001's 112.
+- It filled only 2 of Run003's 11 remaining zero-valued rows.
+- The checked submission hash was
+  `097bd225c1d16a18116c04dd1e85dd7fdd6f87d37911b1510b4dbeafe4ea77c4`.
+
+### Interpretation
+
+Run006 is a genuine new prediction source, but it is not a standalone final
+candidate. Increasing context length did not reduce fallback behavior; zero
+predictions increased relative to Run001. It was useful only as a tiny fallback
+source for Run007, and Run007 was also held back.
+
+## Run 007 - Hybrid Run003 Fallback to Run006 Nonzero
+
+| Field | Value |
+|---|---|
+| Date | 2026-06-29 |
+| Branch | `integration/evoagent-arc` |
+| Commit | Pending |
+| Method | Tiny CSV hybrid over Run 003 using Run 006 as fallback source |
+| Input 1 | `assignment03/runs/kaggle_hybrid_001_002/submission_checked.csv` |
+| Input 2 | `assignment03/runs/kaggle_run006_iterbest_ctx32768/submission_checked.csv` |
+| Output file | `assignment03/runs/kaggle_hybrid_003_006/submission_checked.csv` |
+| Changes file | `assignment03/runs/kaggle_hybrid_003_006/changes.csv` |
+| Summary file | `assignment03/runs/kaggle_hybrid_003_006/summary.json` |
+| Kaggle status | `NOT SUBMITTED` |
+| Public score | Not submitted |
+| Private score | Not submitted |
+| Row count | 494 |
+
+### Hybrid Rule
+
+Start from Run 003. Replace a value only when Run 003 predicted `0.0` and
+Run 006 produced a finite, nonzero value with absolute magnitude at most `1e8`.
+No nonzero Run 003 rows were replaced, and no numeric post-processing was
+applied.
+
+### Validation Notes
+
+- Local validation passed with 494 rows in official `data/test.json` order.
+- No duplicate IDs, no missing values, and all predictions were numeric.
+- 2 rows changed from Run 003.
+- Final zero-valued predictions dropped from 11 to 9.
+- One changed row overlaps with Run 004's four-row hybrid, but Run 006 gives a
+  conflicting value on that row.
+
+### Interpretation
+
+Run 007 is valid but should not be submitted for now. It changes only 2 rows,
+and one of those rows conflicts with the already-submitted Run 004 fallback
+value. Since Run 004 already tied Run 003 publicly, Run 007 is only a
+private-leaderboard gamble with medium risk and limited evidence. Primary final
+candidate remains Run 003. Run 004 remains the alternate final candidate.
 
 ## Current Best
 
 | Rank | Run | Public Score | Notes |
 |---:|---|---:|---|
-| 1 | Run 003 | 0.64574 | Current best; simpler and better-validated hybrid fallback. |
-| 2 | Run 004 | 0.64574 | Same public score as Run 003; changed only 4 additional rows. |
-| 3 | Run 005 | 0.64170 | Conservative numeric post-processing hurt public score slightly. |
+| 1 | Run 003 | 0.64574 | Primary final candidate; simpler hybrid and clearly improves over baseline. |
+| 2 | Run 004 | 0.64574 | Alternate only; same public score as Run 003 with 4 extra fallback rows. |
+| 3 | Run 005 | 0.64170 | Do not use as final; 14 numeric post-processing changes reduced public score. |
+| - | Run 006 | Not submitted | Generated but not submitted; context-expanded rerun had more zeros than Run001. |
+| - | Run 007 | Not submitted | Validated but held back; medium-risk private-LB gamble. |
 | 4 | Run 001 | 0.56477 | Best single-strategy baseline so far. |
 | 5 | Run 002 | 0.47975 | Fewer zero predictions, worse public score as standalone. |
