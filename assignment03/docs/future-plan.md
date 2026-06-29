@@ -32,22 +32,22 @@ The conclusion is that future gains need a stronger new signal. Simple fallback 
 
 ## 2. Improvement Options Summary Table
 
-| Option | Main Idea | Expected Upside | Difficulty | Realistic Level | Compute Cost | Estimated A100 Hours | Risk | Recommended Priority |
-|---|---|---:|---|---|---|---:|---|---:|
-| Targeted retry on remaining zero/failure rows | Retry only Run003 zero rows and accept validated nonzero answers. | Low to medium | Medium | Highly realistic | Low | 0.5-1 | Low | 1 |
-| Multi-sample self-consistency for hard rows | Generate several programs and accept only strong agreement. | Medium | Hard | Realistic | Medium | 1-3 | Medium | 2 |
-| Program repair and re-execution | Fix malformed DSL outputs and re-run evaluator. | Low to medium | Medium | Highly realistic | Low | 0-1 | Low to medium | 3 |
-| Type-aware specialist ensemble | Route by operation type to specialist strategies only when dev evidence supports it. | Medium | Medium | Realistic | Low to medium | 0.5-2 | Medium | 4 |
-| Dynamic few-shot retrieval by question type | Select similar examples per test row to improve program generation. | Medium | Medium | Realistic | Medium | 2-4 | Medium | 5 |
-| Better context/table compression | Extract relevant numbers and table rows before prompting. | Medium to high | Hard | Possible but uncertain | Medium | 2-6 | Medium | 6 |
-| New EvoAgent evolution run focused on addition/subtraction | Optimize strategies for weak operation types. | Medium | Medium | Realistic | Medium to high | 4-10 | Medium | 7 |
-| Train a lightweight selector/ranker over candidate predictions | Learn when to trust each candidate source from dev results. | Medium | Hard | Possible but uncertain | Low | 0-1 | High if overfit | 8 |
-| Stronger model or hosted API path if rules allow | Use stronger allowed models for retry/verification. | Medium to high | Medium to Very Hard | Possible but uncertain | Medium to high | 2-12 | Rule-dependent | 9 |
-| Fine-tuning or preference-tuning on train/dev generated programs | Train a better program generator or ranker. | High | Very Hard | Possible but uncertain | High | 20-80+ | High | 10 |
-| Tool-augmented financial table parser | Build deterministic extraction for tables, rows, years, and values. | High | Very Hard | Possible but uncertain | Medium | 2-8 | Medium | 11 |
-| Full agentic solver with verification loop | Propose, execute, verify, and retry with feedback. | High | Very Hard | Possible but uncertain | High | 8-30 | Medium to high | 12 |
-| Human-readable error taxonomy + automatic rule miner | Mine dev failures and propose safe targeted fixes. | Low to medium | Hard | Possible but uncertain | Low | 0-1 | Medium | 13 |
-| Private-leaderboard robustness strategy | Choose final candidates with lower overfit risk. | Low to medium | Medium | Realistic | Low | 0 | Medium | 14 |
+| Option | Main Idea | Expected Upside | Difficulty | Realistic Level | Compute Cost | Estimated A100 Hours | Recommended Priority | Risk |
+|---|---|---:|---|---|---|---:|---:|---|
+| Targeted retry on remaining zero/failure rows | Retry only Run003 zero rows and accept validated nonzero answers. | Low to medium | Medium | Highly realistic | Low | 0.5-1 | 1 | Low |
+| Multi-sample self-consistency for hard rows | Generate several programs and accept only strong agreement. | Medium | Hard | Realistic | Medium | 1-3 | 2 | Medium |
+| Program repair and re-execution | Fix malformed DSL outputs and re-run evaluator. | Low to medium | Medium | Highly realistic | Low | 0-1 | 3 | Low to medium |
+| Type-aware specialist ensemble | Route by operation type to specialist strategies only when dev evidence supports it. | Medium | Medium | Realistic | Low to medium | 0.5-2 | 4 | Medium |
+| Dynamic few-shot retrieval by question type | Select similar examples per test row to improve program generation. | Medium | Medium | Realistic | Medium | 2-4 | 5 | Medium |
+| Better context/table compression | Extract relevant numbers and table rows before prompting. | Medium to high | Hard | Possible but uncertain | Medium | 2-6 | 6 | Medium |
+| New EvoAgent evolution run focused on addition/subtraction | Optimize strategies for weak operation types. | Medium | Medium | Realistic | Medium to high | 4-10 | 7 | Medium |
+| Train a lightweight selector/ranker over candidate predictions | Learn when to trust each candidate source from dev results. | Medium | Hard | Possible but uncertain | Low | 0-1 | 8 | High if overfit |
+| Stronger model or hosted API path if rules allow | Use stronger allowed models for retry/verification. | Medium to high | Medium to Very Hard | Possible but uncertain | Medium to high | 2-12 | 9 | Rule-dependent |
+| Fine-tuning or preference-tuning on train/dev generated programs | Train a better program generator or ranker. | High | Very Hard | Possible but uncertain | High | 20-80+ | 10 | High |
+| Tool-augmented financial table parser | Build deterministic extraction for tables, rows, years, and values. | High | Very Hard | Possible but uncertain | Medium | 2-8 | 11 | Medium |
+| Full agentic solver with verification loop | Propose, execute, verify, and retry with feedback. | High | Very Hard | Possible but uncertain | High | 8-30 | 12 | Medium to high |
+| Human-readable error taxonomy + automatic rule miner | Mine dev failures and propose safe targeted fixes. | Low to medium | Hard | Possible but uncertain | Low | 0-1 | 13 | Medium |
+| Private-leaderboard robustness strategy | Choose final candidates with lower overfit risk. | Low to medium | Medium | Realistic | Low | 0 | 14 | Medium |
 
 ## 3. Detailed Option Plans
 
