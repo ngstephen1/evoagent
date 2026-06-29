@@ -126,7 +126,7 @@ Observed ARC context:
 |---|---|
 | GPU node used | `tc-dgx006` |
 | GPU type | NVIDIA A100-SXM4-80GB |
-| Python env used on ARC | `/home/stephenallstar24/.conda/envs/evoagent/bin/python` |
+| Python env used on ARC | `/home/<VT_PID>/.conda/envs/evoagent/bin/python` |
 
 Typical ARC helper files:
 
