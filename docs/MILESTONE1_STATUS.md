@@ -158,6 +158,9 @@ cache directories, or large temporary artifacts in the final ZIP.
 
 ## Phase 3 Follow-Up
 
-The first Kaggle baseline has been submitted after Milestone 1 verification.
-See `docs/PHASE3_EXPERIMENT_LOG.md` for Phase 3 Run 001 details, including the
-submitted file, command, and public leaderboard score.
+Kaggle experiments are tracked separately from the Milestone 1 proof workflow.
+The current best public submission is Run 003, a hybrid fallback pipeline with
+public score `0.64574`. Run 005 tested conservative numeric post-processing and
+scored `0.64170`, so it remains an ablation rather than the selected best
+submission. See `docs/PHASE3_EXPERIMENT_LOG.md` for commands, files, validation
+checks, and public leaderboard results.

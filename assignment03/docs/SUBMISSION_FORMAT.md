@@ -28,6 +28,12 @@ The self-evolution strategy path still works too:
 python submit.py --strategy-path ./runs/exp_self/iter_best_strategy.json --output-file ./submission.csv
 ```
 
+For hybrid or post-processed submissions, keep an audit trail next to the final
+CSV. In this repo, `merge_hybrid_details.py` reconstructs aligned
+`submission_details.json` for hybrid outputs, and `phase3_postprocess.py`
+writes both a checked submission CSV and a `changes.csv` explaining every
+numeric correction.
+
 Before upload, check:
 
 - `submission.csv` has exactly the columns `id,Usage,predicted_value`.

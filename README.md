@@ -74,8 +74,11 @@ The project combines local graders for staged development with GPU execution for
     ├── runs/
     ├── main.py
     ├── run_modal.py
+    ├── arc_proofs.py
     ├── submit.py
     ├── format_submission.py
+    ├── merge_hybrid_details.py
+    ├── phase3_postprocess.py
     └── requirements.txt
 ```
 
@@ -122,7 +125,8 @@ python3 graders/grade_stage4_harness.py
 | Stage 2 Reflection | Verified | Self-reflection and fallback parsing pass. |
 | Stage 3 Proposal | Verified | DSL validation and dynamic few-shot proposal pass. |
 | Stage 4 Harness / Evolution | Verified | Smoke and evolution proof checks pass. |
-| Kaggle Run 003 | Submitted | Hybrid Run001 fallback to iter003 nonzero, public score `0.64574`, private score pending. |
+| Kaggle Run 003 | Submitted | Current best: hybrid Run001 fallback to iter003 nonzero, public score `0.64574`, private score pending. |
+| Kaggle Run 005 | Submitted | Conservative numeric post-processing scored `0.64170`; kept as an ablation, not current best. |
 
 ## Proof Generation
 
@@ -164,7 +168,7 @@ Current best Kaggle submission is Run 003:
 | Status | `COMPLETE` |
 | Rows | `494` |
 
-Tracked experiment notes live in [`docs/PHASE3_EXPERIMENT_LOG.md`](docs/PHASE3_EXPERIMENT_LOG.md). Earlier results include Run 001 at `0.56477` and Run 002 at `0.47975`.
+Tracked experiment notes live in [`docs/PHASE3_EXPERIMENT_LOG.md`](docs/PHASE3_EXPERIMENT_LOG.md). Recorded submissions include Run 001 at `0.56477`, Run 002 at `0.47975`, Run 004 at `0.64574`, and Run 005 at `0.64170`.
 
 A typical workflow is:
 
@@ -179,6 +183,13 @@ Useful entrypoints:
 ```bash
 python3 submit.py --strategy-path ./runs/exp_self_arc/iter_best_strategy.json --output-file ./runs/kaggle_arc_best/submission.csv
 python3 format_submission.py --predictions my_predictions.csv --output-file submission.csv
+python3 merge_hybrid_details.py
+python3 phase3_postprocess.py \
+  --submission runs/kaggle_hybrid_001_002/submission_checked.csv \
+  --details runs/kaggle_hybrid_001_002/submission_details.json \
+  --test data/test.json \
+  --output runs/kaggle_postprocess_run005/submission_checked.csv \
+  --changes runs/kaggle_postprocess_run005/changes.csv
 ```
 
 Public leaderboard scores are interim signals only. Final grading depends on the private leaderboard after the Kaggle deadline.

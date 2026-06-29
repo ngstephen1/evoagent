@@ -145,10 +145,100 @@ for many Run 001 fallback cases. This suggests fallback/hybrid ensembling is
 the most promising current Phase 3 direction: preserve the strongest global
 strategy, then selectively patch its failure modes with complementary runs.
 
+## Run 004 - Hybrid Run003 Fallback to Iter004 Nonzero
+
+| Field | Value |
+|---|---|
+| Date | 2026-06-29 |
+| Branch | `integration/evoagent-arc` |
+| Commit | `0123a1b` |
+| Method | No-code CSV hybrid |
+| Input 1 | `assignment03/runs/kaggle_hybrid_001_002/submission_checked.csv` |
+| Input 2 | `assignment03/runs/kaggle_iter004/submission_checked.csv` |
+| Output file | `assignment03/runs/kaggle_hybrid_003_004/submission_checked.csv` |
+| Changes file | `assignment03/runs/kaggle_hybrid_003_004/changes.csv` |
+| Kaggle description | `Hybrid run003 fallback to iter004 nonzero` |
+| Kaggle status | `COMPLETE` |
+| Public score | 0.64574 |
+| Private score | Pending final leaderboard |
+| Row count | 494 |
+
+### Hybrid Rule
+
+Start from Run 003 predictions. For each row:
+
+1. If Run 003 `predicted_value == 0.0` and Run 004 `predicted_value != 0.0`,
+   replace the value with Run 004's prediction.
+2. Otherwise keep Run 003's prediction unchanged.
+
+### Validation Notes
+
+- Local validation found 494 rows, no duplicate IDs, and no blank or
+  non-numeric predictions.
+- 4 rows changed from Run 003.
+- Final zero-valued predictions dropped from 11 in Run 003 to 7 in Run 004.
+- The checked submission hash was
+  `4582cb4e96e5b4d638a08585e3c0f8348c65da4c832e3a414247415e04f49b2a`.
+
+### Interpretation
+
+Run 004 is structurally valid but did not improve the public leaderboard score.
+It may or may not help on the private leaderboard, but the public result shows
+that patching the last few zero-valued rows is not automatically beneficial.
+Current best remains Run 003 because it achieved the same public score with a
+simpler and better-validated fallback rule.
+
+## Run 005 - Hybrid Run003 Conservative Numeric Postprocess
+
+| Field | Value |
+|---|---|
+| Date | 2026-06-29 |
+| Branch | `integration/evoagent-arc` |
+| Commit | Pending |
+| Method | Phase 3 post-processing over Run 003 hybrid |
+| Input submission | `assignment03/runs/kaggle_hybrid_001_002/submission_checked.csv` |
+| Input details | `assignment03/runs/kaggle_hybrid_001_002/submission_details.json` |
+| Output file | `assignment03/runs/kaggle_postprocess_run005/submission_checked.csv` |
+| Changes file | `assignment03/runs/kaggle_postprocess_run005/changes.csv` |
+| Kaggle description | `Hybrid run003 conservative numeric postprocess` |
+| Kaggle status | `COMPLETE` |
+| Public score | 0.64170 |
+| Private score | Pending final leaderboard |
+| Row count | 494 |
+
+### Method
+
+Start from Run 003, then apply conservative deterministic numeric corrections
+using merged submission details. The risky reciprocal-ratio rule was disabled.
+
+Enabled rules:
+
+1. `abs_negative_difference`: 9 changes.
+2. `percent_point_divided_by_100`: 4 changes.
+3. `growth_ratio_to_growth_rate`: 1 change.
+
+### Validation Notes
+
+- Local validation found 494 rows in official `data/test.json` order.
+- No duplicate IDs, no missing values, and all predictions were numeric.
+- 14 rows changed from Run 003.
+- Zero-valued predictions stayed at 11.
+
+### Interpretation
+
+The post-processing rules were structurally valid and mostly conservative, but
+public score dropped from 0.64574 to 0.64170. This suggests some apparent dev
+failure patterns, especially sign and percent-point corrections, do not
+generalize cleanly to public test. Current best remains Run 003. Future
+post-processing should be tested as optional ablations and should prefer
+rules with stronger public/test-aligned evidence.
+
 ## Current Best
 
 | Rank | Run | Public Score | Notes |
 |---:|---|---:|---|
-| 1 | Run 003 | 0.64574 | Current best; hybrid fallback recovered useful Run 001 failures. |
-| 2 | Run 001 | 0.56477 | Best single-strategy baseline so far. |
-| 3 | Run 002 | 0.47975 | Fewer zero predictions, worse public score as standalone. |
+| 1 | Run 003 | 0.64574 | Current best; simpler and better-validated hybrid fallback. |
+| 2 | Run 004 | 0.64574 | Same public score as Run 003; changed only 4 additional rows. |
+| 3 | Run 005 | 0.64170 | Conservative numeric post-processing hurt public score slightly. |
+| 4 | Run 001 | 0.56477 | Best single-strategy baseline so far. |
+| 5 | Run 002 | 0.47975 | Fewer zero predictions, worse public score as standalone. |

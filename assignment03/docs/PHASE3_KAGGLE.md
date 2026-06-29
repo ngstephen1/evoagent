@@ -110,6 +110,39 @@ Before upload:
 - [ ] If using a custom pipeline, you ran `format_submission.py` or otherwise matched `docs/SUBMISSION_FORMAT.md`.
 - [ ] You have recorded the exact commit hash and strategy file used to generate this submission.
 
+### Current Team Workflow Notes
+
+This fork uses VT ARC GPU as the preferred inference environment and keeps
+Modal available as the original assignment path. The strongest public result so
+far is Run 003:
+
+| Run | Method | Public Score | Status |
+|---|---|---:|---|
+| Run 001 | ARC best EvoAgent strategy | 0.56477 | Complete |
+| Run 002 | Iter003 non-CoT table-op strategy | 0.47975 | Complete |
+| Run 003 | Hybrid Run001 fallback to Iter003 nonzero | 0.64574 | Current best |
+| Run 004 | Hybrid Run003 fallback to Iter004 nonzero | 0.64574 | Tie, not preferred |
+| Run 005 | Conservative numeric post-processing over Run003 | 0.64170 | Ablation |
+
+The Run 003 hybrid is built from two checked submissions by replacing only
+Run001 `0.0` predictions with nonzero Run002 predictions. To support auditable
+post-processing, merge details before applying numeric rules:
+
+```bash
+python3 merge_hybrid_details.py
+
+python3 phase3_postprocess.py \
+  --submission runs/kaggle_hybrid_001_002/submission_checked.csv \
+  --details runs/kaggle_hybrid_001_002/submission_details.json \
+  --test data/test.json \
+  --output runs/kaggle_postprocess_run005/submission_checked.csv \
+  --changes runs/kaggle_postprocess_run005/changes.csv
+```
+
+Run 005 showed that conservative numeric rules were structurally valid but hurt
+the public score slightly. Keep Run 003 as the current best unless a later run
+improves the leaderboard.
+
 ---
 
 ## After Kaggle: ThinkFlic Submission
