@@ -1,0 +1,28 @@
+{
+  "status": "success",
+  "best_iteration": 1,
+  "best_dev_accuracy": 0.48333333333333334,
+  "baseline_accuracy": 0.42,
+  "history": [
+    {
+      "iteration": 0,
+      "dev_accuracy": 0.325
+    },
+    {
+      "iteration": 1,
+      "dev_accuracy": 0.48333333333333334
+    },
+    {
+      "iteration": 2,
+      "dev_accuracy": 0.44166666666666665
+    },
+    {
+      "iteration": 3,
+      "dev_accuracy": 0.45416666666666666
+    },
+    {
+      "iteration": 4,
+      "dev_accuracy": 0.4041666666666667
+    }
+  ]
+}
