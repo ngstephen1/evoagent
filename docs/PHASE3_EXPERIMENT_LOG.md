@@ -52,3 +52,103 @@ This run is a valid first Kaggle baseline and performs better on Kaggle public
 score than the dev accuracy alone would suggest. The next experiments should
 focus on reducing invalid/failed programs and improving weak operation types,
 especially addition and table operations from the ARC dev analysis.
+
+## Run 002 - Iteration 003 Non-CoT Table-Op Baseline
+
+| Field | Value |
+|---|---|
+| Date | 2026-06-29 |
+| Branch | `integration/evoagent-arc` |
+| Commit | `177a7f2` |
+| Compute | VT ARC GPU |
+| Model | `QuantTrio/Qwen3.5-4B-AWQ` |
+| Strategy file | `assignment03/runs/exp_self_arc/iter_003_strategy.json` |
+| Strategy id | `f8d823c0-4e48-4147-a9fb-8ff135dbdadf` |
+| Strategy iteration | 3 |
+| Strategy dev accuracy | 0.45416666666666666 |
+| Strategy train accuracy | 0.47 |
+| Output file | `assignment03/runs/kaggle_iter003/submission.csv` |
+| Submitted file | `assignment03/runs/kaggle_iter003/submission_checked.csv` |
+| Kaggle description | `EvoAgent iter003 non-CoT table-op baseline` |
+| Kaggle status | `COMPLETE` |
+| Public score | 0.47975 |
+| Private score | Pending final leaderboard |
+| Row count | 494 |
+
+### Generation Command
+
+Run from `assignment03/` on an ARC GPU node:
+
+```bash
+python3 submit.py \
+  --strategy-path ./runs/exp_self_arc/iter_003_strategy.json \
+  --output-file ./runs/kaggle_iter003/submission.csv \
+  --model QuantTrio/Qwen3.5-4B-AWQ \
+  --gpu-memory-utilization 0.7
+```
+
+### Validation Notes
+
+- `submission_checked.csv` has columns `id,Usage,predicted_value`.
+- Local validation found 494 rows, no duplicate IDs, and no blank or
+  non-numeric predictions.
+- Zero-valued predictions dropped from 112 in Run 001 to 23 in Run 002.
+- The checked submission hash was
+  `ce9605bf8eb022bbd8d7ca986919641bfb40e10cb90fae17b28663bb7a6d4d1e`.
+
+### Interpretation
+
+Run 002 reduced fallback-like `0.0` predictions substantially, but Kaggle public
+score dropped from 0.56477 to 0.47975. Avoiding `0.0` fallback alone is not
+enough; the non-CoT iter003 strategy likely produced more confident but wrong
+numeric answers. Current best remains Run 001.
+
+## Run 003 - Hybrid Run001 Fallback to Iter003 Nonzero
+
+| Field | Value |
+|---|---|
+| Date | 2026-06-29 |
+| Branch | `integration/evoagent-arc` |
+| Commit | `177a7f2` |
+| Method | No-code CSV hybrid |
+| Input 1 | `assignment03/runs/kaggle_arc_best/submission_checked.csv` |
+| Input 2 | `assignment03/runs/kaggle_iter003/submission_checked.csv` |
+| Output file | `assignment03/runs/kaggle_hybrid_001_002/submission_checked.csv` |
+| Changes file | `assignment03/runs/kaggle_hybrid_001_002/changes.csv` |
+| Kaggle description | `Hybrid run001 fallback to iter003 nonzero` |
+| Kaggle status | `COMPLETE` |
+| Public score | 0.64574 |
+| Private score | Pending final leaderboard |
+| Row count | 494 |
+
+### Hybrid Rule
+
+Start from Run 001 predictions. For each row:
+
+1. If Run 001 `predicted_value == 0.0` and Run 002 `predicted_value != 0.0`,
+   replace the value with Run 002's prediction.
+2. Otherwise keep Run 001's prediction unchanged.
+
+### Validation Notes
+
+- Local validation found 494 rows, no duplicate IDs, and no blank or
+  non-numeric predictions.
+- 101 rows changed from Run 001.
+- Final zero-valued predictions dropped from 112 in Run 001 to 11 in Run 003.
+- The checked submission hash was
+  `11dcc3ade60ef4570e0410559d2ef9a2e7b9343a20471f802281e0fb16c8b31b`.
+
+### Interpretation
+
+Run 002 was not globally better than Run 001, but it recovered useful answers
+for many Run 001 fallback cases. This suggests fallback/hybrid ensembling is
+the most promising current Phase 3 direction: preserve the strongest global
+strategy, then selectively patch its failure modes with complementary runs.
+
+## Current Best
+
+| Rank | Run | Public Score | Notes |
+|---:|---|---:|---|
+| 1 | Run 003 | 0.64574 | Current best; hybrid fallback recovered useful Run 001 failures. |
+| 2 | Run 001 | 0.56477 | Best single-strategy baseline so far. |
+| 3 | Run 002 | 0.47975 | Fewer zero predictions, worse public score as standalone. |
