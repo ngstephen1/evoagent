@@ -26,14 +26,14 @@
 
 This repository is a team fork for **VietAI Advanced NLP06 Assignment 03**. It implements **EvoAgent**, an evolutionary agent loop that proposes, evaluates, reflects on, and improves reasoning strategies for Vietnamese financial programmatic question answering.
 
-The project combines local graders for staged development with Modal GPU execution for model inference and proof generation.
+The project combines local graders for staged development with GPU execution for proof generation and Kaggle inference. The original assignment keeps a Modal path, while this fork uses **VT ARC TinkerCliffs** as the preferred compute environment.
 
 ## Assignment Milestones
 
 | Milestone | Points | What it requires | Status |
 | --- | ---: | --- | --- |
-| EvoAgent Implementation | 6 | Complete staged EvoAgent components, run local graders, and generate Modal proof artifacts. | Local stages implemented; Modal proofs pending |
-| Kaggle Competition | 4 | Produce valid hidden-test predictions and compete on the private leaderboard. | Pending |
+| EvoAgent Implementation | 6 | Complete staged EvoAgent components, run local graders, and generate proof artifacts. | Verified on local graders with ARC proof files |
+| Kaggle Competition | 4 | Produce valid hidden-test predictions and compete on the private leaderboard. | First baseline submitted; public score `0.56477` |
 | ThinkFlic Final Submission | - | Package source code, report, evidence, Kaggle artifacts, and integrity materials. | Pending |
 
 ## Deadlines
@@ -47,8 +47,9 @@ The project combines local graders for staged development with Modal GPU executi
 
 - **Python 3.10-3.12** for local development, graders, and orchestration.
 - **Qwen / QwenInference** for program-generation inference.
-- **SGLang** for high-throughput GPU model serving in the Modal runtime.
-- **Modal** for cloud GPU execution and persistent proof artifacts.
+- **SGLang** for high-throughput GPU model serving on ARC or Modal.
+- **VT ARC GPU** for A100/H200 execution, proof generation, and Kaggle inference in this fork.
+- **Modal** remains available through the original assignment workflow.
 - **Hugging Face ecosystem** for datasets, model access, and token-authenticated downloads.
 - **Pydantic** for typed structured outputs in reflection/proposal workflows.
 - **Kaggle** for the final hidden-test competition workflow.
@@ -89,7 +90,7 @@ pip install -r requirements.txt
 python3 main.py --help
 ```
 
-The local environment is intended for editing, lightweight checks, and graders. Full model inference is designed to run on Modal because the SGLang/CUDA stack requires a suitable NVIDIA GPU.
+The local environment is intended for editing, lightweight checks, and graders. Full model inference should run on a suitable NVIDIA GPU environment such as VT ARC TinkerCliffs.
 
 ## VT ARC GPU Workflow
 
@@ -110,22 +111,22 @@ PYTHONPATH=. python3 graders/grade_smoke_proof.py
 python3 graders/grade_stage4_harness.py
 ```
 
-`grade_smoke_proof.py` may require `PYTHONPATH=.` when run directly. Proof-dependent graders require their corresponding Modal-generated JSON artifacts, so Stage 0/Stage 4 proof checks are expected to remain incomplete until Modal runs are finished.
+`grade_smoke_proof.py` may require `PYTHONPATH=.` when run directly. Proof-dependent graders require their corresponding generated JSON artifacts. In this fork, those proof files were generated on VT ARC and the full Stage 0-4 local grader suite passes.
 
 ## Current Implementation Status
 
 | Component | Status | Notes |
 | --- | --- | --- |
-| Stage 0 Sandbox | Local implementation test passes | `sandbox_proof.json` is pending Modal generation. |
-| Stage 1 Executor | Local grader passes | Token accounting and evaluation loop are implemented. |
-| Stage 2 Reflection | Local grader passes | Self-reflection and fallback parsing are implemented. |
-| Stage 3 Proposal | Local grader passes | DSL validation and dynamic few-shot proposal are implemented. |
-| Stage 4 Harness / Evolution | Local implementation checks pass | `smoke_proof.json` and `evolution_proof.json` are pending Modal generation. |
-| Kaggle | Pending | No Kaggle score or final submission is claimed. |
+| Stage 0 Sandbox | Verified | Local implementation and `sandbox_proof.json` pass. |
+| Stage 1 Executor | Verified | Token accounting and evaluation loop pass. |
+| Stage 2 Reflection | Verified | Self-reflection and fallback parsing pass. |
+| Stage 3 Proposal | Verified | DSL validation and dynamic few-shot proposal pass. |
+| Stage 4 Harness / Evolution | Verified | Smoke and evolution proof checks pass. |
+| Kaggle Run 001 | Submitted | ARC best-strategy baseline, public score `0.56477`, private score pending. |
 
-## Modal and Proof Generation
+## Proof Generation
 
-Modal is used for GPU-backed inference and official proof artifact generation.
+The original assignment describes Modal as the official GPU proof path. This fork keeps `assignment03/run_modal.py` intact, but uses VT ARC as the preferred path through `assignment03/arc_proofs.py`.
 
 ```bash
 modal setup
@@ -133,19 +134,39 @@ export HF_TOKEN="hf_your-token"
 modal secret create huggingface HF_TOKEN=hf_your-token
 ```
 
-Generated proof files include:
+ARC proof generation:
+
+```bash
+cd /home/<VT_PID>/temp/evoagent/assignment03
+export HF_TOKEN="hf_your_token"
+python3 arc_proofs.py all
+```
+
+Generated proof files:
 
 | Proof file | Generated by | Purpose |
 | --- | --- | --- |
-| `sandbox_proof.json` | `modal run run_modal.py::sandbox` | Stage 0 baseline evidence. |
-| `smoke_proof.json` | `modal run run_modal.py::smoke` | Stage 4 smoke-test evidence. |
-| `evolution_proof.json` | `modal run run_modal.py::get_proof` after the full run | Stage 4 final evolution evidence. |
+| `sandbox_proof.json` | `arc_proofs.py sandbox` or `run_modal.py::sandbox` | Stage 0 baseline evidence. |
+| `smoke_proof.json` | `arc_proofs.py smoke` or `run_modal.py::smoke` | Stage 4 smoke-test evidence. |
+| `evolution_proof.json` | `arc_proofs.py evolution` or Modal proof download | Stage 4 final evolution evidence. |
 
-Do **not** hand-write or hand-edit proof JSON files. They should be generated by Modal runs and copied unchanged for grading/submission.
+Do **not** hand-write or hand-edit proof JSON files. They should be generated by GPU runs and copied unchanged for grading/submission.
 
 ## Kaggle Workflow
 
-The Kaggle phase is pending. A typical workflow is:
+Run 001 has been submitted successfully:
+
+| Field | Value |
+| --- | --- |
+| File | `assignment03/runs/kaggle_arc_best/submission_checked.csv` |
+| Description | `EvoAgent ARC best strategy baseline` |
+| Public score | `0.56477` |
+| Status | `COMPLETE` |
+| Rows | `494` |
+
+Tracked experiment notes live in [`docs/PHASE3_EXPERIMENT_LOG.md`](docs/PHASE3_EXPERIMENT_LOG.md).
+
+A typical workflow is:
 
 1. Join the competition from the official assignment link.
 2. Generate predictions from the best validated EvoAgent strategy or another documented pipeline.
@@ -156,11 +177,11 @@ The Kaggle phase is pending. A typical workflow is:
 Useful entrypoints:
 
 ```bash
-python3 submit.py --strategy-path ./runs/exp_self/iter_best_strategy.json --output-file ./submission.csv
+python3 submit.py --strategy-path ./runs/exp_self_arc/iter_best_strategy.json --output-file ./runs/kaggle_arc_best/submission.csv
 python3 format_submission.py --predictions my_predictions.csv --output-file submission.csv
 ```
 
-No Kaggle result, score, or rank is claimed in this repository yet.
+Public leaderboard scores are interim signals only. Final grading depends on the private leaderboard after the Kaggle deadline.
 
 ## Team Workflow
 

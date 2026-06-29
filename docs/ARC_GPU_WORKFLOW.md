@@ -257,10 +257,53 @@ After an evolution run produces a strategy JSON, generate predictions from
 ```bash
 python3 submit.py \
   --strategy-path ./runs/exp_self_arc/iter_best_strategy.json \
-  --output-file ./submission.csv \
+  --output-file ./runs/kaggle_arc_best/submission.csv \
   --model QuantTrio/Qwen3.5-4B-AWQ \
   --gpu-memory-utilization 0.7
 ```
+
+Validate before uploading:
+
+```bash
+python3 - <<'PY'
+import csv, json, math
+from pathlib import Path
+
+submission = Path("runs/kaggle_arc_best/submission.csv")
+test = json.loads(Path("data/test.json").read_text())
+
+with submission.open("r", encoding="utf-8-sig", newline="") as f:
+    rows = list(csv.DictReader(f))
+
+expected_ids = [str(r["id"]) for r in test]
+actual_ids = [str(r["id"]) for r in rows]
+bad = []
+for i, row in enumerate(rows):
+    try:
+        value = float(row.get("predicted_value", ""))
+        ok = math.isfinite(value)
+    except Exception:
+        ok = False
+    if not ok:
+        bad.append((i, row.get("id"), row.get("predicted_value")))
+
+print("expected_rows:", len(expected_ids))
+print("actual_rows:", len(rows))
+print("ids_match_order:", actual_ids == expected_ids)
+print("bad_predictions:", len(bad))
+
+assert list(rows[0].keys()) == ["id", "Usage", "predicted_value"]
+assert len(rows) == len(expected_ids)
+assert actual_ids == expected_ids
+assert not bad
+print("VALID SUBMISSION")
+PY
+```
+
+Run 001 used this path with `QuantTrio/Qwen3.5-4B-AWQ` and produced a valid
+494-row Kaggle submission with public score `0.56477`. Record each submission
+in `docs/PHASE3_EXPERIMENT_LOG.md` with the command, commit, strategy path,
+row count, Kaggle description, public score, and any validation notes.
 
 If your final pipeline emits predictions another way:
 

@@ -18,10 +18,11 @@ Expected branch:
 integration/evoagent-arc
 ```
 
-Checkpoint commit at verification time:
+Checkpoint commits:
 
 ```text
 4459037 Add ARC-generated proof artifacts
+675bb15 Sanitize ARC user placeholders
 ```
 
 ## Implemented Stages
@@ -154,3 +155,9 @@ requires that exact file.
 
 Do not include secrets, `.env` files, local SFTP configuration, model weights,
 cache directories, or large temporary artifacts in the final ZIP.
+
+## Phase 3 Follow-Up
+
+The first Kaggle baseline has been submitted after Milestone 1 verification.
+See `docs/PHASE3_EXPERIMENT_LOG.md` for Phase 3 Run 001 details, including the
+submitted file, command, and public leaderboard score.
