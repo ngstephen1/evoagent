@@ -3,7 +3,7 @@
 # VT ARC quick reference for EvoAgent.
 # This file is intentionally safe: no tokens, no private keys, no secrets.
 
-export VT_PID="${VT_PID:-stephenallstar24}"
+export VT_PID="${VT_PID:-<YOUR_VT_PID>}"
 export LOGIN_HOSTNAME="${LOGIN_HOSTNAME:-tinkercliffs1}"
 
 # Login:
