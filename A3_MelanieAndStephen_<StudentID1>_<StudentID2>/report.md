@@ -9,7 +9,8 @@ uses the best strategies for Kaggle prediction generation.
 
 Milestone 1 is complete: Stages 0-4 pass local graders, and proof files were
 generated on VT ARC GPU infrastructure. Phase 3 Kaggle experimentation is
-frozen with Run003 selected as the primary final public candidate.
+currently frozen with Run009-lite safe selected as the primary final public
+candidate.
 
 Team members:
 
@@ -68,11 +69,13 @@ Proof and analysis artifacts in this package:
 |---|---|---:|---|
 | Run001 | Best EvoAgent strategy baseline | 0.56477 | Baseline |
 | Run002 | Iter003 table-op strategy | 0.47975 | Not final |
-| Run003 | Hybrid Run001 fallback to Run002 nonzero | 0.64574 | Primary final |
+| Run003 | Hybrid Run001 fallback to Run002 nonzero | 0.64574 | Previous best |
 | Run004 | Hybrid Run003 fallback to iter004 nonzero | 0.64574 | Alternate |
 | Run005 | Conservative numeric post-processing | 0.64170 | Not final |
 | Run006 | Context-expanded rerun | Not submitted | Not final |
 | Run007 | Tiny Run003/Run006 hybrid | Not submitted | Not final |
+| Run008 filtered | Targeted retry over Run003 zero rows, agreement >= 2 | 0.65587 | Previous best |
+| Run009-lite safe | Suspicious-row targeted retry over Run008, filtered to safe meaningful changes | 0.65789 | Primary final |
 
 ## Final Hybrid Method
 
@@ -82,15 +85,27 @@ The primary final file is:
 kaggle/final_submission.csv
 ```
 
-It is copied from Run003:
+It is copied from Run009-lite safe:
 
 ```text
-assignment03/runs/kaggle_hybrid_001_002/submission_checked.csv
+assignment03/runs/kaggle_hybrid_retry_run009_lite_safe/submission_checked.csv
 ```
 
 Run003 starts from Run001 and replaces only rows where Run001 predicted `0.0`
 and Run002 predicted a nonzero value. This reduced zero-valued predictions
 from 112 to 11 and improved public score from 0.56477 to 0.64574.
+
+Run008 filtered starts from Run003, retries only the remaining zero-valued rows
+with multi-sample DSL generation, executes valid candidate programs, and keeps
+only retry recoveries with `agreement_count >= 2`. This changed 6 rows, reduced
+the final zero-valued prediction count to 5, and improved public score from
+0.64574 to 0.65587.
+
+Run009-lite safe starts from Run008 filtered, retries a narrow set of 60
+suspicious rows, and keeps only three meaningful high-confidence changes. It
+explicitly excludes an accepted retry that would have introduced a new extreme
+outlier, reducing the chance of public-leaderboard overfitting. This improved
+public score from 0.65587 to 0.65789.
 
 Run004 tied Run003 publicly but changed only four extra rows, so it remains an
 alternate/private-leaderboard hedge rather than the primary final choice.
@@ -102,10 +117,12 @@ predictions due to malformed or invalid generated programs. Iter003 reduced
 zero predictions but was worse globally, indicating that confident nonzero
 answers were often incorrect.
 
-Hybrid fallback ensembling was the most effective method because it preserved
+Hybrid fallback ensembling was the first effective method because it preserved
 Run001's stronger global reasoning while selectively recovering useful answers
 from a complementary strategy. Broad numeric post-processing changed 14 rows
-but reduced public score, so it was rejected.
+but reduced public score, so it was rejected. Targeted retry then recovered
+additional failures, but only after filtering out low-confidence candidates and
+new extreme outliers.
 
 ## Reproducibility
 
@@ -139,8 +156,9 @@ python3 submit.py \
   --gpu-memory-utilization 0.7
 ```
 
-The final Run003 hybrid was created by deterministic CSV replacement. Full
-experiment notes are in `docs/PHASE3_EXPERIMENT_LOG.md` in the repository.
+The final Run009-lite safe hybrid was created by deterministic CSV replacement
+from accepted retry recoveries over Run008 filtered. Full experiment notes are in
+`docs/PHASE3_EXPERIMENT_LOG.md` in the repository.
 
 ## Integrity Declaration Summary
 

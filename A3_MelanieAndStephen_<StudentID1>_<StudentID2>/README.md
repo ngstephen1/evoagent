@@ -15,13 +15,14 @@ report PDF, integrity PDF, and video link still need final confirmation.
 
 | Role | File | Public Score | Decision |
 |---|---|---:|---|
-| Primary final | `kaggle/final_submission.csv` | 0.64574 | Use for final Kaggle artifact. |
-| Alternate | `assignment03/runs/kaggle_hybrid_003_004/submission_checked.csv` | 0.64574 | Keep as private-leaderboard hedge only. |
+| Primary final | `kaggle/final_submission.csv` | 0.65789 | Use for final Kaggle artifact. |
+| Alternate | `assignment03/runs/kaggle_hybrid_retry_run008_agree2/submission_checked.csv` | 0.65587 | Strong previous targeted-retry candidate. |
+| Alternate | `assignment03/runs/kaggle_hybrid_001_002/submission_checked.csv` | 0.64574 | Simpler fallback baseline/private-leaderboard hedge. |
 
 `kaggle/final_submission.csv` is copied from:
 
 ```text
-assignment03/runs/kaggle_hybrid_001_002/submission_checked.csv
+assignment03/runs/kaggle_hybrid_retry_run009_lite_safe/submission_checked.csv
 ```
 
 ## Package Contents

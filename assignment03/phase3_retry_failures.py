@@ -91,6 +91,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--base-details", type=Path, default=DEFAULT_BASE_DETAILS)
     parser.add_argument("--test", type=Path, default=DEFAULT_TEST)
     parser.add_argument("--strategy-path", type=Path, default=DEFAULT_STRATEGY_PATH)
+    parser.add_argument(
+        "--target-rows",
+        type=Path,
+        default=None,
+        help="Optional CSV of target rows. When supplied, target selection uses this file instead of automatic zero-row selection.",
+    )
     parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT_DIR)
     parser.add_argument("--model", default=DEFAULT_MODEL)
     parser.add_argument("--gpu-memory-utilization", type=float, default=0.85)
@@ -431,6 +437,61 @@ def select_targets(
                     "detail_source": str(detail.get("detail_source") or ""),
                 }
             )
+    if limit_targets is not None:
+        targets = targets[: max(0, limit_targets)]
+    return targets
+
+
+def select_targets_from_csv(
+    target_rows_path: Path,
+    submission: dict[str, dict[str, str]],
+    details: dict[str, dict[str, Any]],
+    test_rows: list[dict[str, Any]],
+    limit_targets: int | None,
+) -> list[dict[str, Any]]:
+    test_by_id = {str(row.get("id", "")): row for row in test_rows}
+    targets: list[dict[str, Any]] = []
+    seen: set[str] = set()
+
+    with target_rows_path.open("r", encoding="utf-8-sig", newline="") as f:
+        reader = csv.DictReader(f)
+        fieldnames = set(reader.fieldnames or [])
+        required = {"id", "target_reason"}
+        missing = required - fieldnames
+        if missing:
+            raise ValueError(f"{target_rows_path} missing columns: {sorted(missing)}")
+
+        for csv_row in reader:
+            row_id = str(csv_row.get("id") or "").strip()
+            if not row_id:
+                raise ValueError(f"{target_rows_path} contains empty id")
+            if row_id in seen:
+                raise ValueError(f"{target_rows_path} contains duplicate id: {row_id}")
+            if row_id not in submission:
+                raise ValueError(f"target id not found in base submission: {row_id}")
+            if row_id not in test_by_id:
+                raise ValueError(f"target id not found in test data: {row_id}")
+            seen.add(row_id)
+
+            detail = details.get(row_id, {})
+            old_value_text = csv_row.get("old_value")
+            old_value = (
+                to_float(old_value_text)
+                if old_value_text not in (None, "")
+                else to_float(submission[row_id]["predicted_value"])
+            )
+            fallback_question = test_question(test_by_id[row_id])
+            targets.append(
+                {
+                    "id": row_id,
+                    "old_value": old_value,
+                    "question": str(csv_row.get("question") or detail_question(detail, fallback_question)),
+                    "target_reason": str(csv_row.get("target_reason") or "target_rows_csv"),
+                    "detail_source": str(csv_row.get("detail_source") or detail.get("detail_source") or ""),
+                    "priority_score": str(csv_row.get("priority_score") or ""),
+                }
+            )
+
     if limit_targets is not None:
         targets = targets[: max(0, limit_targets)]
     return targets
@@ -872,14 +933,23 @@ def main() -> None:
     submission = load_submission(args.base_submission)
     details = load_details(args.base_details)
     test_rows = load_test_rows(args.test)
-    targets = select_targets(
-        submission=submission,
-        details=details,
-        test_rows=test_rows,
-        target_zero_only=args.target_zero_only,
-        include_suspicious=args.include_suspicious,
-        limit_targets=args.limit_targets,
-    )
+    if args.target_rows is not None:
+        targets = select_targets_from_csv(
+            target_rows_path=args.target_rows,
+            submission=submission,
+            details=details,
+            test_rows=test_rows,
+            limit_targets=args.limit_targets,
+        )
+    else:
+        targets = select_targets(
+            submission=submission,
+            details=details,
+            test_rows=test_rows,
+            target_zero_only=args.target_zero_only,
+            include_suspicious=args.include_suspicious,
+            limit_targets=args.limit_targets,
+        )
     for target in targets:
         detail = details.get(str(target["id"]), {})
         target["program"] = str(detail.get("program") or "")

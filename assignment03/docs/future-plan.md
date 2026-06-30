@@ -7,34 +7,43 @@ Hard boundaries:
 - Do not use hidden labels or infer test answers manually.
 - Do not commit secrets, HF tokens, Kaggle tokens, `.env` files, private keys, model weights, or caches.
 - Do not treat the public leaderboard as a tuning oracle through excessive submissions.
-- Keep Run003 stable as the primary final candidate unless a validated method clearly beats it.
+- Keep Run009-lite safe stable as the primary final candidate unless a validated method clearly beats it.
 
 ## 1. Current Baseline and Plateau
 
-Current best public score: `0.64574`.
+Current best public score: `0.65789`.
 
 Current best submission:
 
-- Run: Run003
-- File: `assignment03/runs/kaggle_hybrid_001_002/submission_checked.csv`
-- Method: start from Run001, then replace only rows where Run001 predicted `0.0` and Run002/iter003 produced a nonzero value
+- Run: Run009-lite safe
+- File: `assignment03/runs/kaggle_hybrid_retry_run009_lite_safe/submission_checked.csv`
+- Method: start from Run008 filtered, retry a narrow suspicious-row set, then keep only meaningful high-confidence changes that do not introduce new extreme outliers
 
 Run003 worked because Run001 was the strongest single strategy but had many failure-like `0.0` predictions. Run002 was weaker globally, but it often produced executable programs for rows where Run001 failed. The hybrid kept Run001's nonzero predictions and used Run002 only as a fallback source.
 
-Later experiments showed a plateau:
+Later experiments showed where simple methods plateaued and where targeted
+retry helped:
 
 - Run004 changed only a few additional rows and tied Run003.
 - Run005 applied conservative numeric post-processing to 14 rows and lowered the score to `0.64170`.
 - Run006 increased context length but produced too many zeros.
 - Run007 changed only 2 rows and was not submitted because the evidence was weak.
+- Run008 targeted only the 11 remaining Run003 zero rows; the filtered variant
+  changed 6 higher-confidence rows and improved public score to `0.65587`.
+- Run009-lite targeted 60 suspicious Run008 rows; the safe submitted variant
+  kept 3 auditable changes and improved public score to `0.65789`.
 
-The conclusion is that future gains need a stronger new signal. Simple fallback patching is mostly exhausted. The next improvement must recover failed rows with higher confidence, repair invalid programs, route examples to genuinely better specialists, or use better context/modeling under the assignment rules.
+The conclusion is that future gains need a stronger new signal beyond the
+current Run009-lite safe retry. Simple fallback patching is mostly exhausted.
+The next improvement must recover the remaining failed rows with even higher
+confidence, repair invalid programs, route examples to genuinely better
+specialists, or use better context/modeling under the assignment rules.
 
 ## 2. Improvement Options Summary Table
 
 | Option | Main Idea | Expected Upside | Difficulty | Realistic Level | Compute Cost | Estimated A100 Hours | Recommended Priority | Risk |
 |---|---|---:|---|---|---|---:|---:|---|
-| Targeted retry on remaining zero/failure rows | Retry only Run003 zero rows and accept validated nonzero answers. | Low to medium | Medium | Highly realistic | Low | 0.5-1 | 1 | Low |
+| Targeted retry on remaining zero/failure rows | Retry only remaining Run008 zero rows and accept validated nonzero answers. | Low | Medium | Highly realistic | Low | 0.5-1 | 1 | Low |
 | Multi-sample self-consistency for hard rows | Generate several programs and accept only strong agreement. | Medium | Hard | Realistic | Medium | 1-3 | 2 | Medium |
 | Program repair and re-execution | Fix malformed DSL outputs and re-run evaluator. | Low to medium | Medium | Highly realistic | Low | 0-1 | 3 | Low to medium |
 | Type-aware specialist ensemble | Route by operation type to specialist strategies only when dev evidence supports it. | Medium | Medium | Realistic | Low to medium | 0.5-2 | 4 | Medium |
@@ -53,10 +62,10 @@ The conclusion is that future gains need a stronger new signal. Simple fallback 
 
 ### 1. Targeted Retry on Remaining Zero/Failure Rows
 
-- What it is: rerun only the rows where Run003 predicts `0.0`, with a stricter prompt and multiple attempts.
+- What it is: rerun only the rows where Run008 filtered still predicts `0.0`, with a stricter prompt and multiple attempts.
 - Why it could improve score: these rows are the cleanest unresolved failure cases; any valid recovery can improve without changing known-good nonzero predictions.
-- How to implement: create a Phase 3-only retry script that loads Run003, filters zero rows, builds stricter DSL-only prompts, executes candidate programs, and records accepted answers.
-- Files/scripts likely involved: `assignment03/phase3_retry_failures.py`, `assignment03/phase3_build_retry_hybrid.py`, `assignment03/src/evaluator.py`, `assignment03/src/model.py`, `assignment03/runs/kaggle_hybrid_001_002/submission_details.json`.
+- How to implement: create a Phase 3-only retry script that loads the current best submission, filters remaining zero rows, builds stricter DSL-only prompts, executes candidate programs, and records accepted answers.
+- Files/scripts likely involved: `assignment03/phase3_retry_failures.py`, `assignment03/phase3_build_retry_hybrid.py`, `assignment03/src/evaluator.py`, `assignment03/src/model.py`, `assignment03/runs/kaggle_hybrid_retry_run008_agree2/submission_checked.csv`.
 - Expected artifacts: `runs/kaggle_retry_run008/retry_details.json`, `runs/kaggle_retry_run008/retry_predictions.json`, `runs/kaggle_hybrid_retry_run008/submission_checked.csv`, `runs/kaggle_hybrid_retry_run008/changes.csv`, `runs/kaggle_hybrid_retry_run008/summary.json`.
 - Validation method: check 494 rows, exact test ID order, no duplicate IDs, no missing values, all numeric outputs, changed-row count, final zero count, and manual inspection of program validity without inferring labels.
 - Difficulty: Medium.
@@ -259,7 +268,10 @@ Difficulty: Hard.
 
 Realistic level: Realistic to possible.
 
-Why this could beat `0.64574`: Run003 has already exhausted simple fallback gains, but self-consistency can recover a new signal from the same model by reducing one-sample variance. It is especially attractive for the remaining zero rows and malformed-program failures.
+Why this could beat `0.65789`: Run009-lite safe exhausted the first wave of
+zero-row retries, but self-consistency can still recover a new signal from the
+same model by reducing one-sample variance. It is most attractive for the
+remaining zero rows and malformed-program failures.
 
 ### B. Program Repair Pipeline
 
@@ -269,7 +281,9 @@ Difficulty: Medium to Hard.
 
 Realistic level: Highly realistic for small gains, possible for larger gains.
 
-Why this could beat `0.64574`: it directly targets the failure mode that made Run003 useful in the first place, while avoiding broad changes to nonzero rows.
+Why this could beat `0.65789`: it directly targets the failure mode that made
+Run003, Run008, and Run009-lite useful in the first place, while avoiding broad changes to
+nonzero rows.
 
 ### C. Type-Aware Specialist Ensemble
 
@@ -281,7 +295,9 @@ Difficulty: Medium.
 
 Realistic level: Realistic but needs careful gating.
 
-Why this could beat `0.64574`: iter003's table_op strength shows that specialist behavior exists, but it must be applied only where it is genuinely complementary.
+Why this could beat `0.65789`: iter003's table_op strength shows that
+specialist behavior exists, but it must be applied only where it is genuinely
+complementary.
 
 ### D. Retrieval and Table Compression
 
@@ -291,7 +307,9 @@ Difficulty: Hard.
 
 Realistic level: Possible but uncertain.
 
-Why this could beat `0.64574`: if current failures are caused by irrelevant context or table confusion, compression gives the model a cleaner problem without changing the scoring format.
+Why this could beat `0.65789`: if current failures are caused by irrelevant
+context or table confusion, compression gives the model a cleaner problem
+without changing the scoring format.
 
 ### E. Stronger Model Path
 
@@ -303,7 +321,8 @@ Difficulty: Medium to Very Hard depending on the model.
 
 Realistic level: Possible but rule-dependent.
 
-Why this could beat `0.64574`: stronger models may reduce extraction mistakes and malformed DSL, especially when used narrowly on hard rows.
+Why this could beat `0.65789`: stronger models may reduce extraction mistakes
+and malformed DSL, especially when used narrowly on hard rows.
 
 ### F. Full Verification Loop / Agentic Solver
 
@@ -372,6 +391,12 @@ Build a full financial QA system:
 
 ## 6. Practical Recommendation
 
-The next serious score attempt should still be narrow: targeted retry plus execution verification for Run003 zero rows. This is the best balance of upside, implementation speed, and risk control.
+The next serious score attempt should still be narrow: targeted retry plus
+execution verification for the remaining Run009-lite safe zero rows or clearly
+invalid retry candidates. This is the best balance of upside, implementation
+speed, and risk control.
 
-If that does not beat `0.64574` after one or two attempts, freeze Kaggle with Run003 as the primary final candidate and complete the ThinkFlic package. Longer-term ideas are worth documenting, but they should not destabilize a valid final submission.
+If that does not beat `0.65789` after one or two attempts, freeze Kaggle with
+Run009-lite safe as the primary final candidate and complete the ThinkFlic
+package. Longer-term ideas are worth documenting, but they should not
+destabilize a valid final submission.

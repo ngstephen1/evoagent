@@ -4,21 +4,28 @@ This log records Kaggle-facing experiments for Assignment 03 Phase 3. Each run
 should include the strategy or pipeline used, validation checks, Kaggle result,
 and enough reproduction detail to audit the submission later.
 
-## Experiment Freeze
+## Current Phase 3 Status
 
-Kaggle experimentation is frozen after Run 007. Do not create or submit more
-Kaggle runs unless the team explicitly reopens Phase 3 experimentation.
+Run 009-lite safe is the current best public submission. Run 008 filtered
+remains the strongest previous targeted-retry baseline, while Run 003 remains
+the most important fallback-hybrid baseline.
+Do not create more Kaggle runs unless the team explicitly reopens Phase 3
+experimentation.
 
 Final Kaggle candidates:
 
 | Role | Run | File | Public Score | Decision |
 |---|---|---|---:|---|
-| Primary final | Run 003 | `assignment03/runs/kaggle_hybrid_001_002/submission_checked.csv` | 0.64574 | Use as primary final Kaggle file. |
+| Primary final | Run 009-lite safe | `assignment03/runs/kaggle_hybrid_retry_run009_lite_safe/submission_checked.csv` | 0.65789 | Use as primary final Kaggle file unless a later validated run beats it. |
+| Alternate / previous best | Run 008 filtered | `assignment03/runs/kaggle_hybrid_retry_run008_agree2/submission_checked.csv` | 0.65587 | Keep as the strongest previous targeted-retry candidate. |
+| Alternate / private hedge | Run 003 | `assignment03/runs/kaggle_hybrid_001_002/submission_checked.csv` | 0.64574 | Keep as simpler fallback-only baseline. |
 | Alternate / private hedge | Run 004 | `assignment03/runs/kaggle_hybrid_003_004/submission_checked.csv` | 0.64574 | Keep as alternate only. |
 
-Summary interpretation: hybrid fallback ensembling was the strongest method.
-Broad numeric post-processing hurt public score, and further same-run ensembling
-plateaued without producing a clearly better candidate.
+Summary interpretation: hybrid fallback ensembling created the first major
+gain, and targeted retry over remaining zero rows created the next gain. Broad
+numeric post-processing hurt public score, while weak-confidence retry outputs
+needed filtering. Run 009-lite shows that suspicious-row retry can add a small
+additional gain when changes are filtered to avoid new extreme outliers.
 
 ## Run 001 - EvoAgent ARC Best Strategy Baseline
 
@@ -201,9 +208,9 @@ Start from Run 003 predictions. For each row:
 Run 004 is structurally valid but did not improve the public leaderboard score.
 It may or may not help on the private leaderboard, but the public result shows
 that patching the last few zero-valued rows is not automatically beneficial.
-Current best remains Run 003 because it achieved the same public score with a
-simpler and better-validated fallback rule. Keep Run 004 as an alternate only
-if final submission selection allows multiple candidate choices.
+At the time, Run 003 remained preferred because it achieved the same public
+score with a simpler and better-validated fallback rule. Run 004 is kept as an
+alternate/private-leaderboard hedge.
 
 ## Run 005 - Hybrid Run003 Conservative Numeric Postprocess
 
@@ -247,11 +254,10 @@ The post-processing rules were structurally valid and mostly conservative, but
 the 14 changed rows reduced public score from 0.64574 to 0.64170. This suggests
 some apparent dev failure patterns, especially sign and percent-point
 corrections, do not generalize cleanly to public test. Do not use Run 005 as
-the final submission. Current best remains Run 003/Run 004 at 0.64574, with
-Run 003 preferred as the primary final candidate because it is simpler and
-clearly improves over the baseline. Future post-processing should be treated as
-optional ablations and should prefer rules with stronger public/test-aligned
-evidence.
+the final submission. At the time, Run 003/Run 004 remained best at `0.64574`,
+with Run 003 preferred because it was simpler and clearly improved over the
+baseline. Future post-processing should be treated as optional ablations and
+should prefer rules with stronger public/test-aligned evidence.
 
 ## Run 006 - IterBest Context-Expanded Rerun
 
@@ -339,18 +345,164 @@ applied.
 
 Run 007 is valid but should not be submitted for now. It changes only 2 rows,
 and one of those rows conflicts with the already-submitted Run 004 fallback
-value. Since Run 004 already tied Run 003 publicly, Run 007 is only a
-private-leaderboard gamble with medium risk and limited evidence. Primary final
-candidate remains Run 003. Run 004 remains the alternate final candidate.
+value. Since Run 004 already tied Run 003 publicly, Run 007 was only a
+private-leaderboard gamble with medium risk and limited evidence. It was not
+submitted, and the next successful public improvement came from Run 008
+filtered.
+
+## Run 008 - Targeted Retry for Run003 Zero Rows
+
+| Field | Value |
+|---|---|
+| Date | 2026-06-30 |
+| Branch | `integration/evoagent-arc` |
+| Method | Multi-sample targeted retry plus DSL repair/execution over Run003 zero rows |
+| Base submission | `assignment03/runs/kaggle_hybrid_001_002/submission_checked.csv` |
+| Retry details | `assignment03/runs/kaggle_retry_run008/retry_details.json` |
+| Full hybrid file | `assignment03/runs/kaggle_hybrid_retry_run008/submission_checked.csv` |
+| Full hybrid changes | `assignment03/runs/kaggle_hybrid_retry_run008/changes.csv` |
+| Filtered submitted file | `assignment03/runs/kaggle_hybrid_retry_run008_agree2/submission_checked.csv` |
+| Filtered changes | `assignment03/runs/kaggle_hybrid_retry_run008_agree2/changes.csv` |
+| Kaggle description | `Run008 filtered targeted retry agreement>=2` |
+| Kaggle status | `COMPLETE` |
+| Public score | 0.65587 |
+| Private score | Pending final leaderboard |
+| Row count | 494 |
+
+### Retry Method
+
+Run 008 starts from Run 003 and targets only rows where Run 003 predicted
+`0.0`. For each target row, the retry script samples multiple DSL candidates,
+repairs supported malformed outputs, executes valid programs with the existing
+DSL evaluator, clusters numeric answers, and accepts only finite, nonzero,
+non-extreme values.
+
+The full retry recovered 7 of Run003's 11 zero rows:
+
+- Zero count before retry: 11.
+- Zero count after full retry: 4.
+- Full retry changed rows: 7.
+- Full retry rejected rows: 4.
+- Full retry validation: 494 rows, exact ID order, no duplicates, no missing
+  predictions, all numeric.
+
+### Filtered Submission
+
+Before submitting, the team inspected `changes.csv` and found one suspicious
+single-candidate replacement:
+
+- Question: comparing POW P/B in 2018 and 2019F.
+- Table evidence: P/B was `1.5` in both years.
+- Full Run008 replacement: `29.25`.
+- Confidence: `single_strict_repair_no_conflict`, `agreement_count=1`.
+
+To reduce risk, the submitted Run008 variant kept only replacements with
+`agreement_count >= 2`.
+
+Filtered validation:
+
+- Row count: 494.
+- Exact test ID order: true.
+- Duplicate IDs: 0.
+- Missing predictions: 0.
+- All predictions numeric: true.
+- Changed rows from Run003: 6.
+- Final zero-valued predictions: 5.
+- `safe_to_submit`: true.
+
+### Interpretation
+
+Run 008 confirms that targeted retry is more useful than broad numeric
+post-processing. The gain over Run003 is modest but real: public score improved
+from `0.64574` to `0.65587`. The agreement filter mattered because it removed a
+likely bad single-candidate answer while preserving six higher-confidence
+recoveries. Run 008 filtered became the first targeted-retry best and remains a
+strong alternate now that Run 009-lite safe has slightly improved on it.
+
+## Run 009-Lite - Safe Filtered Targeted Retry
+
+| Field | Value |
+|---|---|
+| Date | 2026-06-30 |
+| Branch | `integration/evoagent-arc` |
+| Method | Suspicious-row targeted retry over Run008 filtered, then safe filtering |
+| Base submission | `assignment03/runs/kaggle_hybrid_retry_run008_agree2/submission_checked.csv` |
+| Target rows | `assignment03/runs/kaggle_retry_run009_lite/target_rows.csv` |
+| Full retry details | `assignment03/runs/kaggle_retry_run009_lite/retry_details.json` |
+| Full hybrid file | `assignment03/runs/kaggle_hybrid_retry_run009_lite/submission_checked.csv` |
+| Safe submitted file | `assignment03/runs/kaggle_hybrid_retry_run009_lite_safe/submission_checked.csv` |
+| Safe changes | `assignment03/runs/kaggle_hybrid_retry_run009_lite_safe/changes.csv` |
+| Kaggle description | `Run009-lite safe filtered targeted retry` |
+| Kaggle status | `COMPLETE` |
+| Public score | 0.65789 |
+| Private score | Pending final leaderboard |
+| Row count | 494 |
+
+### Targeting Method
+
+Run 009-lite starts from Run008 filtered and selects a narrow suspicious-row
+pool instead of retrying all 494 test rows. The target selector prioritizes:
+
+1. Remaining zero predictions after Run008.
+2. Extreme predictions where `abs(predicted_value) > 1e6`.
+3. Negative predictions with absolute-difference wording.
+4. Strong disagreement among Run001, Run002, Run004, Run006, and Run008.
+5. Weak operation-type cues for addition, subtraction, and table operations.
+
+The full Run009-lite retry processed 60 target rows with 5 samples per row and
+checkpoint/resume enabled. The full builder accepted 15 retry rows, but most
+were numerically identical to the existing Run008 prediction. One accepted
+replacement introduced a new extreme value:
+
+```text
+masvn/2020/2020077-V1_VN_Galvanized-steel-Outlook/page_13_QB4
+0.0117678555 -> 11784259.5
+```
+
+To reduce risk, the submitted safe variant kept only meaningful replacements
+that did not introduce a new `abs(value) > 1e6` extreme and skipped unchanged
+accepted retries.
+
+### Safe Validation
+
+- Row count: 494.
+- Exact test ID order: true.
+- Duplicate IDs: 0.
+- Missing predictions: 0.
+- All predictions numeric: true.
+- Changed rows from Run008 filtered: 3.
+- Zero-valued predictions: 5 -> 4.
+- Negative predictions: 50 -> 49.
+- Extreme `abs(value) > 1e6` predictions: 9 -> 9.
+- `safe_to_submit`: true.
+
+Safe changed rows:
+
+| ID | Old | New | Agreement | Reason |
+|---|---:|---:|---:|---|
+| `masvn/2020/2020010-190314_MBB_2018review_VN/page_1_QA4` | 36.5908489817509 | 22.97 | 5 | Table max ROE correction. |
+| `C/2015/page_96.pdf-3` | -32.1 | 32.1 | 3 | Absolute difference wording; sign corrected. |
+| `GPN/2013/page_87.pdf-4` | 0.0 | 170.0 | 2 | Remaining zero recovered by addition program. |
+
+### Interpretation
+
+Run 009-lite safe produced the best public score so far: `0.65789`, improving
+over Run008 filtered by `0.00202`. The improvement is small but meaningful
+because it came from only three auditable changes and avoided the full
+Run009-lite candidate's new extreme outlier. This supports the same overall
+lesson as Run008: narrow, executable, agreement-filtered changes are useful;
+broad or high-magnitude replacements remain risky.
 
 ## Current Best
 
 | Rank | Run | Public Score | Notes |
 |---:|---|---:|---|
-| 1 | Run 003 | 0.64574 | Primary final candidate; simpler hybrid and clearly improves over baseline. |
-| 2 | Run 004 | 0.64574 | Alternate only; same public score as Run 003 with 4 extra fallback rows. |
-| 3 | Run 005 | 0.64170 | Do not use as final; 14 numeric post-processing changes reduced public score. |
+| 1 | Run 009-lite safe | 0.65789 | Primary final candidate; safe filtered retry over Run008 suspicious rows. |
+| 2 | Run 008 filtered | 0.65587 | Strong previous best; targeted retry over Run003 zero rows with agreement filter. |
+| 3 | Run 003 | 0.64574 | Previous fallback-hybrid best and useful private-LB hedge. |
+| 4 | Run 004 | 0.64574 | Alternate only; same public score as Run 003 with 4 extra fallback rows. |
+| 5 | Run 005 | 0.64170 | Do not use as final; 14 numeric post-processing changes reduced public score. |
 | - | Run 006 | Not submitted | Generated but not submitted; context-expanded rerun had more zeros than Run001. |
 | - | Run 007 | Not submitted | Validated but held back; medium-risk private-LB gamble. |
-| 4 | Run 001 | 0.56477 | Best single-strategy baseline so far. |
-| 5 | Run 002 | 0.47975 | Fewer zero predictions, worse public score as standalone. |
+| 6 | Run 001 | 0.56477 | Best single-strategy baseline so far. |
+| 7 | Run 002 | 0.47975 | Fewer zero predictions, worse public score as standalone. |

@@ -114,15 +114,17 @@ Before upload:
 
 This fork uses VT ARC GPU as the preferred inference environment and keeps
 Modal available as the original assignment path. The strongest public result so
-far is Run 003:
+far is Run 009-lite safe:
 
 | Run | Method | Public Score | Status |
 |---|---|---:|---|
 | Run 001 | ARC best EvoAgent strategy | 0.56477 | Complete |
 | Run 002 | Iter003 non-CoT table-op strategy | 0.47975 | Complete |
-| Run 003 | Hybrid Run001 fallback to Iter003 nonzero | 0.64574 | Current best |
-| Run 004 | Hybrid Run003 fallback to Iter004 nonzero | 0.64574 | Tie, not preferred |
+| Run 003 | Hybrid Run001 fallback to Iter003 nonzero | 0.64574 | Previous best |
+| Run 004 | Hybrid Run003 fallback to Iter004 nonzero | 0.64574 | Tie with Run003 |
 | Run 005 | Conservative numeric post-processing over Run003 | 0.64170 | Ablation |
+| Run 008 filtered | Targeted retry for Run003 zero rows, `agreement_count >= 2` | 0.65587 | Previous best |
+| Run 009-lite safe | Safe filtered retry over Run008 suspicious rows | 0.65789 | Current best |
 
 The Run 003 hybrid is built from two checked submissions by replacing only
 Run001 `0.0` predictions with nonzero Run002 predictions. To support auditable
@@ -140,8 +142,11 @@ python3 phase3_postprocess.py \
 ```
 
 Run 005 showed that conservative numeric rules were structurally valid but hurt
-the public score slightly. Keep Run 003 as the current best unless a later run
-improves the leaderboard.
+the public score slightly. Run 008 showed that narrow targeted retry can recover
+additional fallback rows when filtered by candidate agreement. Run 009-lite
+safe added a smaller gain by keeping only three auditable changes and avoiding
+a new extreme outlier. Keep Run 009-lite safe as the current best unless a later validated run improves the
+leaderboard.
 
 ---
 

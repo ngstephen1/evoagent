@@ -12,13 +12,23 @@ Primary final Kaggle file:
 - kaggle/final_submission.csv
 
 Source artifact:
-- assignment03/runs/kaggle_hybrid_001_002/submission_checked.csv
+- assignment03/runs/kaggle_hybrid_retry_run009_lite_safe/submission_checked.csv
 
 Primary public score:
-- 0.64574
+- 0.65789
 
 Final private score/rank:
 - TBD after Kaggle private leaderboard is released.
+
+Alternate candidate:
+- assignment03/runs/kaggle_hybrid_retry_run008_agree2/submission_checked.csv
+- Public score: 0.65587
+- Role: strongest previous targeted-retry candidate.
+
+Alternate candidate:
+- assignment03/runs/kaggle_hybrid_001_002/submission_checked.csv
+- Public score: 0.64574
+- Role: simpler fallback-only baseline/private-leaderboard hedge.
 
 Alternate candidate:
 - assignment03/runs/kaggle_hybrid_003_004/submission_checked.csv
@@ -41,7 +51,7 @@ Run003:
 - Method: hybrid Run001 fallback to Run002 nonzero predictions.
 - File: assignment03/runs/kaggle_hybrid_001_002/submission_checked.csv
 - Public score: 0.64574
-- Decision: primary final candidate.
+- Decision: previous best and alternate/private-leaderboard hedge.
 
 Run004:
 - Method: hybrid Run003 fallback to iter004 nonzero predictions.
@@ -65,7 +75,23 @@ Run007:
 - File: assignment03/runs/kaggle_hybrid_003_006/submission_checked.csv
 - Kaggle status: not submitted.
 
+Run008 filtered:
+- Method: targeted retry over Run003 zero rows; keep only agreement_count >= 2 recoveries.
+- File: assignment03/runs/kaggle_hybrid_retry_run008_agree2/submission_checked.csv
+- Public score: 0.65587
+- Kaggle status: complete.
+- Decision: previous best and strongest alternate.
+
+Run009-lite safe:
+- Method: suspicious-row targeted retry over Run008 filtered; keep only safe meaningful changes and exclude new extreme outliers.
+- File: assignment03/runs/kaggle_hybrid_retry_run009_lite_safe/submission_checked.csv
+- Public score: 0.65789
+- Kaggle status: complete.
+- Decision: primary final candidate.
+
 Final choice rationale:
-- Hybrid fallback ensembling produced the strongest public score.
+- Hybrid fallback ensembling produced the first major public-score gain.
+- Targeted retry over remaining zero rows produced the first targeted-retry gain.
+- Run009-lite safe improved again by applying only three auditable high-confidence changes over Run008 filtered.
 - Broad numeric post-processing reduced public score.
-- Later same-run ensembling plateaued and did not justify replacing Run003.
+- Low-confidence single-candidate retry recoveries were filtered out before submission.

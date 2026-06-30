@@ -11,7 +11,7 @@ The project has three practical tracks:
 | Track | Goal | Current Status |
 |---|---|---|
 | Milestone 1 | Implement EvoAgent stages and generate proof artifacts. | Complete and locally verified. |
-| Milestone 2 / Phase 3 | Improve Kaggle public score with generated predictions. | Current best public score is `0.64574`. |
+| Milestone 2 / Phase 3 | Improve Kaggle public score with generated predictions. | Current best public score is `0.65789`. |
 | ThinkFlic final package | Prepare final source, evidence, report, integrity declaration, and final Kaggle file. | Scaffold exists, final metadata still pending. |
 
 Team:
@@ -23,11 +23,11 @@ Team:
 
 Current best final candidate:
 
-- Best public score: `0.64574`
-- Primary final run: Run003
-- Primary final file: `assignment03/runs/kaggle_hybrid_001_002/submission_checked.csv`
-- Method: start from Run001 and replace only rows where Run001 predicted `0.0` with Run002/iter003 when Run002 produced a nonzero value
-- Alternate final candidate: Run004, also public score `0.64574`
+- Best public score: `0.65789`
+- Primary final run: Run009-lite safe
+- Primary final file: `assignment03/runs/kaggle_hybrid_retry_run009_lite_safe/submission_checked.csv`
+- Method: start from Run008 filtered, retry a narrow suspicious-row set, then keep only three auditable high-confidence changes that do not introduce a new extreme outlier
+- Alternate final candidates: Run008 filtered at `0.65587`, plus Run003 and Run004 at `0.64574`
 
 ## 2. Implementation Summary
 
@@ -52,8 +52,12 @@ Phase 3 helper scripts currently present:
 |---|---|
 | `assignment03/phase3_postprocess.py` | Applies conservative numeric post-processing rules for a Kaggle candidate. Run005 showed this was not strong enough for final use. |
 | `assignment03/merge_hybrid_details.py` | Builds merged details JSON for hybrid submissions so later analysis/post-processing can trace the source prediction. |
+| `assignment03/phase3_retry_failures.py` | Run008 targeted retry script with checkpoint/resume, candidate repair, execution, and agreement clustering. |
+| `assignment03/phase3_build_retry_hybrid.py` | Builds validated Run008 hybrid submissions from accepted retry details. |
+| `assignment03/phase3_select_run009_targets.py` | Selects suspicious Run009-lite rows from Run008 filtered and cross-run disagreement signals. |
+| `assignment03/phase3_build_run009_hybrid.py` | Builds validated Run009-lite hybrids with stricter nonzero replacement rules. |
 
-Planned but not yet implemented improvement scripts are described in `assignment03/docs/step_to_improve.md`.
+Additional future improvement ideas are described in `assignment03/docs/step_to_improve.md`.
 
 ## 3. How EvoAgent Works
 
@@ -151,21 +155,44 @@ Security warning:
 |---|---|---:|---|---|
 | Run001 | EvoAgent ARC best strategy baseline | 0.56477 | Strategy: `assignment03/runs/exp_self_arc/iter_best_strategy.json`; submission: `assignment03/runs/kaggle_arc_best/submission_checked.csv` | Strongest single strategy, but had about 112 `0.0` fallback predictions. |
 | Run002 | Full iter003/table-op strategy | 0.47975 | `assignment03/runs/kaggle_iter003/submission_checked.csv` | Fewer zero predictions, but worse overall; useful as fallback, bad as full replacement. |
-| Run003 | Hybrid Run001 fallback to iter003 nonzero | 0.64574 | `assignment03/runs/kaggle_hybrid_001_002/submission_checked.csv` | Current primary final. Biggest gain came from filling Run001 failure/zero rows with Run002 nonzero predictions. |
+| Run003 | Hybrid Run001 fallback to iter003 nonzero | 0.64574 | `assignment03/runs/kaggle_hybrid_001_002/submission_checked.csv` | Previous best. Biggest gain came from filling Run001 failure/zero rows with Run002 nonzero predictions. |
 | Run004 | Hybrid Run003 fallback to iter004 nonzero | 0.64574 | `assignment03/runs/kaggle_hybrid_003_004/submission_checked.csv` | Tied Run003; changed only a few rows; useful as alternate/private hedge. |
 | Run005 | Conservative numeric post-processing | 0.64170 | `assignment03/runs/kaggle_postprocess_run005/submission_checked.csv` | Changed 14 rows but hurt score; do not use as final. |
 | Run006 | Context-expanded rerun of best strategy with max context 32768 | Not submitted | `assignment03/runs/kaggle_run006_iterbest_ctx32768/submission_checked.csv` | Worse zero count than Run001; not useful standalone. |
 | Run007 | Tiny Run003 + Run006 fallback | Not submitted | `assignment03/runs/kaggle_hybrid_003_006/submission_checked.csv` | Valid, but only changed 2 rows and one conflicted with Run004; medium-risk private-leaderboard gamble; not recommended for final. |
+| Run008 filtered | Targeted retry over Run003 zero rows, keeping only `agreement_count >= 2` recoveries | 0.65587 | `assignment03/runs/kaggle_hybrid_retry_run008_agree2/submission_checked.csv` | Previous best. Recovered 6 higher-confidence zero/fallback rows from Run003. |
+| Run009-lite safe | Suspicious-row targeted retry over Run008 filtered, excluding unchanged rows and new extreme outliers | 0.65789 | `assignment03/runs/kaggle_hybrid_retry_run009_lite_safe/submission_checked.csv` | Current primary final. Kept 3 auditable changes and improved public score without increasing extreme count. |
 
-### Why Run003 Is Best So Far
+### Why Run009-Lite Safe Is Best So Far
 
 Run001 had the strongest overall behavior, but it often failed by producing malformed, looping, or invalid programs that cleaned to `0.0`. Run002 was worse as a full strategy, but it often produced executable programs where Run001 failed. Run003 preserved all nonzero Run001 predictions and used Run002 only as a fallback source for Run001 zeros.
 
-That selective rule gave the biggest public-score improvement:
+That selective rule gave the first major public-score improvement:
 
 ```text
 Run001: 0.56477
 Run003: 0.64574
+```
+
+Run008 then targeted only the 11 remaining Run003 zero rows. The full retry
+recovered 7 rows, but one single-candidate recovery looked suspicious, so the
+submitted filtered variant kept only replacements with `agreement_count >= 2`.
+This changed 6 rows, reduced the final zero count to 5, and improved public
+score again:
+
+```text
+Run003: 0.64574
+Run008 filtered: 0.65587
+```
+
+Run009-lite then targeted only 60 suspicious Run008 rows and used stricter
+filtering before submission. The full candidate accepted 15 retry rows, but
+only 3 were meaningful and safe after removing unchanged values and one new
+extreme outlier. That conservative variant improved the public score again:
+
+```text
+Run008 filtered: 0.65587
+Run009-lite safe: 0.65789
 ```
 
 ### What Failed
@@ -173,7 +200,8 @@ Run003: 0.64574
 - Replacing too broadly failed: Run002 had fewer zeros but scored much worse as a full submission.
 - Numeric post-processing failed: Run005 changed 14 rows and reduced the public score.
 - Bigger context failed: Run006 had more zero predictions than Run001.
-- Extra fallback rows plateaued: Run004 tied Run003, and Run007 was not worth submitting.
+- Extra fallback rows plateaued when they came from similar submissions: Run004 tied Run003, and Run007 was not worth submitting.
+- Targeted retry worked only after confidence filtering; suspicious or extreme replacements were excluded from the submitted Run008 and Run009-safe files.
 
 ## 7. Important Lessons
 
@@ -203,7 +231,7 @@ Important scaffold files:
 | `A3_MelanieAndStephen_<StudentID1>_<StudentID2>/report.md` | Draft present; final PDF still needed |
 | `A3_MelanieAndStephen_<StudentID1>_<StudentID2>/integrity_declaration.md` | Draft present; signed/PDF form still needed |
 | `A3_MelanieAndStephen_<StudentID1>_<StudentID2>/source_code/` | Present |
-| `A3_MelanieAndStephen_<StudentID1>_<StudentID2>/kaggle/final_submission.csv` | Present; copied from Run003 |
+| `A3_MelanieAndStephen_<StudentID1>_<StudentID2>/kaggle/final_submission.csv` | Present; copied from Run009-lite safe |
 | `A3_MelanieAndStephen_<StudentID1>_<StudentID2>/kaggle/submission_information.txt` | Present |
 | `A3_MelanieAndStephen_<StudentID1>_<StudentID2>/evidence/evolution_proof.json` | Present |
 | `A3_MelanieAndStephen_<StudentID1>_<StudentID2>/evidence/failure_mode_report.pdf` | Present |
@@ -229,25 +257,40 @@ A3_MelanieAndStephen_<REAL_ID_1>_<REAL_ID_2>
 
 See `assignment03/docs/step_to_improve.md` for the detailed score-improvement roadmap.
 
-Recommended next high-upside experiment:
+Run008 and Run009-lite completed the previously recommended targeted-retry
+experiments. If the team reopens Kaggle work, the next high-upside experiment
+should build on Run009-lite safe rather than replacing it broadly:
 
-- Target only Run003 remaining zero/failure rows.
+- Target only the remaining Run009 zero/failure rows or clearly invalid retry candidates.
 - Use multi-sample retry or self-consistency.
 - Generate valid DSL programs only.
 - Execute and validate programs locally.
-- Hybrid recovered rows back into Run003 only when they are finite, nonzero, non-extreme, and consistent.
-- Do not touch nonzero Run003 predictions by default.
+- Hybrid recovered rows back into Run009-lite safe only when they are finite, nonzero, non-extreme, and consistent.
+- Do not touch nonzero Run009-lite safe predictions by default.
 
-The proposed next run is Run008:
+The completed Run008 artifacts are:
 
 | Item | Value |
 |---|---|
 | Base file | `assignment03/runs/kaggle_hybrid_001_002/submission_checked.csv` |
 | Candidate output dir | `assignment03/runs/kaggle_retry_run008/` |
 | Hybrid output dir | `assignment03/runs/kaggle_hybrid_retry_run008/` |
-| Submit only if | At least 3 useful zero rows are recovered and validation passes |
+| Submitted filtered output | `assignment03/runs/kaggle_hybrid_retry_run008_agree2/submission_checked.csv` |
+| Public score | `0.65587` |
 
-If Run008 does not beat `0.64574` after one or two serious attempts, the practical recommendation is to freeze Kaggle with Run003 as primary final and complete the ThinkFlic package.
+The completed Run009-lite safe artifacts are:
+
+| Item | Value |
+|---|---|
+| Base file | `assignment03/runs/kaggle_hybrid_retry_run008_agree2/submission_checked.csv` |
+| Target rows | `assignment03/runs/kaggle_retry_run009_lite/target_rows.csv` |
+| Retry output dir | `assignment03/runs/kaggle_retry_run009_lite/` |
+| Safe submitted output | `assignment03/runs/kaggle_hybrid_retry_run009_lite_safe/submission_checked.csv` |
+| Public score | `0.65789` |
+
+The practical recommendation is to freeze Kaggle with Run009-lite safe as the
+primary final candidate unless the team explicitly decides to run another
+narrow, auditable retry experiment.
 
 ## 10. Quick Commands
 

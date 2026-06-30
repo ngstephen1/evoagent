@@ -4,26 +4,30 @@
 
 Current best Kaggle candidate:
 
-- Best score: `0.64574`
-- Best submission file: `assignment03/runs/kaggle_hybrid_001_002/submission_checked.csv`
-- Current final choice: Run003 as the primary final candidate
-- Alternate candidate: Run004, same public score but with extra fallback replacements
+- Best score: `0.65789`
+- Best submission file: `assignment03/runs/kaggle_hybrid_retry_run009_lite_safe/submission_checked.csv`
+- Current final choice: Run009-lite safe as the primary final candidate
+- Alternate candidates: Run008 filtered at `0.65587`, plus Run003 and Run004 at `0.64574`
 
 | Run | Method | Public Score | Status | Key Signal |
 |---|---:|---:|---|---|
 | Run001 | ARC best strategy baseline | 0.56477 | Submitted | Strongest single strategy, but 112 zero predictions. |
 | Run002 | iter003 table-op strategy | 0.47975 | Submitted | Only 23 zeros, but many confident wrong answers. |
-| Run003 | Run001 fallback to Run002 nonzero | 0.64574 | Primary final | 101 replacements; best public score. |
+| Run003 | Run001 fallback to Run002 nonzero | 0.64574 | Previous best | 101 replacements; first major public-score gain. |
 | Run004 | Run003 fallback to iter004 nonzero | 0.64574 | Alternate | 4 extra replacements; tied public score. |
 | Run005 | Conservative numeric postprocess | 0.64170 | Rejected | 14 changes hurt score. |
 | Run006 | iter_best ctx32768 rerun | Not submitted | Rejected source | 122 zeros; worse fallback behavior. |
 | Run007 | Run003 fallback to Run006 nonzero | Not submitted | Rejected | Only 2 changes, medium-risk. |
+| Run008 filtered | Targeted retry over Run003 zero rows, agreement >= 2 | 0.65587 | Previous best | 6 high-confidence replacements; first targeted-retry gain. |
+| Run009-lite safe | Suspicious-row retry over Run008, filtered to safe meaningful changes | 0.65789 | Primary final | 3 auditable changes; improved without increasing extreme outliers. |
 
 What worked:
 
 - Run003 worked because it preserved Run001's stronger global reasoning and patched only the most obvious failure mode: `0.0` fallback predictions.
 - Run002 was weak as a standalone submission, but it was useful as a specialist fallback source for Run001 failures.
 - The best public gain came from selective replacement, not from replacing all predictions from one strategy with another.
+- Run008 filtered worked because it retried only remaining Run003 zero rows and accepted only higher-confidence recovered answers.
+- Run009-lite safe worked because it expanded retry to a narrow suspicious-row pool but submitted only three meaningful, auditable changes and skipped one new extreme outlier.
 
 What failed:
 
@@ -31,6 +35,7 @@ What failed:
 - Run005 changed 14 rows with conservative numeric rules and lowered score from `0.64574` to `0.64170`, so broad deterministic post-processing is not safe.
 - Run006 increased fallback behavior: the context-expanded rerun had 122 zeros and recovered only a tiny number of useful rows for hybrid use.
 - Run004 and Run007 show that same-family fallback ensembling plateaued after Run003; extra changes were too few or too uncertain to improve public score.
+- The full Run008 retry included one suspicious single-candidate replacement, so the submitted variant filtered it out with `agreement_count >= 2`.
 
 Why Run003 improved:
 
@@ -40,7 +45,7 @@ Why Run003 improved:
 
 ## 2. Main Bottlenecks
 
-Run003 still has 11 zero predictions. These are the cleanest next targets because the current best submission has no useful answer for them.
+Run009-lite safe still has 4 zero predictions. These are the cleanest remaining targets because the current best submission still has no useful answer for them.
 
 Run001-style Chain-of-Thought remains high variance: iter001 dev accuracy was `0.4833`, with very high output-token usage and several malformed or repetitive programs. The visible failure mode is not just wrong arithmetic; many failures are extraction or syntax failures that become invalid programs.
 
@@ -54,7 +59,7 @@ Weak dev areas remain important:
 
 This means table-operation specialists can help in narrow cases, but routing them broadly is risky. Addition and subtraction also remain weak enough that a naive median or majority ensemble can easily swap a wrong answer for another wrong answer.
 
-Broad replacement is risky because the public leaderboard already penalized apparently reasonable numeric corrections in Run005. Same-run ensembling also plateaued: Run004 changed only 4 rows from Run003 and tied the score, while Run007 changed only 2 rows and was not worth submitting.
+Broad replacement is risky because the public leaderboard already penalized apparently reasonable numeric corrections in Run005. Same-run ensembling also plateaued: Run004 changed only 4 rows from Run003 and tied the score, while Run007 changed only 2 rows and was not worth submitting. Run008 shows that a narrow retry can help, but low-agreement candidates should be filtered.
 
 ## 3. Ranked Improvement Ideas
 
@@ -122,9 +127,13 @@ Broad replacement is risky because the public leaderboard already penalized appa
 
 ## 4. Recommended Next Experiment
 
-Run008: targeted retry for Run003 remaining zero rows.
+Run008: targeted retry for Run003 remaining zero rows. This experiment has now
+been completed and submitted as Run008 filtered.
 
-This is the best risk/reward next experiment because it attacks the clearest remaining failure mode while preserving every successful Run003 nonzero prediction. It can meaningfully beat `0.64574` if it recovers several of the 11 remaining zero rows, and it avoids the broad-replacement risk that hurt Run005.
+This was the best risk/reward experiment because it attacked the clearest
+remaining failure mode while preserving every successful Run003 nonzero
+prediction. The filtered submission recovered 6 higher-confidence rows and beat
+`0.64574`, reaching `0.65587`.
 
 Inputs:
 
@@ -154,16 +163,16 @@ Outputs:
 - `runs/kaggle_hybrid_retry_run008/changes.csv`
 - `runs/kaggle_hybrid_retry_run008/summary.json`
 
-Submission decision criteria:
+Submission decision outcome:
 
-- Validation passes.
-- At least 3 useful zero rows are recovered.
-- No nonzero Run003 rows are changed.
-- Do not submit if fewer than 3 rows change or if candidate answers conflict heavily across samples.
+- Validation passed.
+- 6 higher-confidence zero rows were recovered after filtering.
+- No nonzero Run003 rows were changed.
+- Public score improved to `0.65587`.
 
 ## 5. Implementation Plan for Recommended Experiment
 
-Add Phase 3-only scripts later:
+Added Phase 3-only scripts:
 
 - `assignment03/phase3_retry_failures.py`
 - `assignment03/phase3_build_retry_hybrid.py`
@@ -220,13 +229,15 @@ python3 - <<'PY'
 PY
 ```
 
-The Run008 hybrid should be submitted only after the validation summary confirms that it is a narrow improvement candidate rather than another broad rewrite.
+The submitted Run008 filtered hybrid kept only `agreement_count >= 2` retry
+recoveries. Future variants should keep the same conservative default and avoid
+broad replacement of nonzero Run008 filtered predictions.
 
 ## 6. Stop Criteria
 
 - Stop if fewer than 3 useful new rows are recovered.
 - Stop if dev proxy checks or candidate inspection suggest broad harm.
-- Stop if 1-2 serious Run008 attempts do not beat `0.64574`.
+- Stop if 1-2 further narrow retry attempts do not beat `0.65789`.
 - Stop if the only remaining changes are private-leaderboard gambles with weak evidence.
 - Move to ThinkFlic packaging after that.
 
@@ -236,5 +247,5 @@ The Run008 hybrid should be submitted only after the validation summary confirms
 - Do not manually infer or hand-label test answers.
 - Do not store HF tokens, Kaggle tokens, `.env` files, private keys, model weights, or cache artifacts in the repo.
 - Document every Kaggle submission in the experiment log.
-- Keep Run003 stable as the final submission unless a validated submission beats `0.64574`.
+- Keep Run009-lite safe stable as the final submission unless a validated submission beats `0.65789`.
 - Preserve enough details files, changes files, and summary files to reproduce every generated candidate.
