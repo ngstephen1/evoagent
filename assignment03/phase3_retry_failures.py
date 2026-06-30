@@ -9,10 +9,13 @@ from __future__ import annotations
 
 import argparse
 import csv
+import datetime as dt
 import json
 import math
+import os
 import re
 import sys
+import time
 from collections import Counter
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
@@ -30,6 +33,9 @@ DEFAULT_TEST = Path("data/test.json")
 DEFAULT_STRATEGY_PATH = Path("runs/exp_self_arc/iter_best_strategy.json")
 DEFAULT_OUTPUT_DIR = Path("runs/kaggle_retry_run008")
 DEFAULT_MODEL = "QuantTrio/Qwen3.5-4B-AWQ"
+PARTIAL_DETAILS_FILE = "retry_details.partial.jsonl"
+PROGRESS_STATE_FILE = "progress_state.json"
+CANDIDATE_PROGRAMS_FILE = "candidate_programs.jsonl"
 SUPPORTED_OPS = (
     "table_average",
     "table_max",
@@ -110,6 +116,12 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Print target rows and exit before loading the model or datasets.",
     )
+    parser.add_argument(
+        "--resume",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Resume from retry_details.partial.jsonl and skip completed rows.",
+    )
     return parser.parse_args()
 
 
@@ -128,6 +140,179 @@ def to_float(value: Any) -> float:
 
 def format_float(value: float) -> str:
     return format(float(value), ".15g")
+
+
+def utc_now_iso() -> str:
+    return dt.datetime.now(dt.timezone.utc).replace(microsecond=0).isoformat()
+
+
+def format_duration(seconds: float | None) -> str:
+    if seconds is None or seconds < 0 or not math.isfinite(seconds):
+        return "unknown"
+    seconds_int = int(seconds)
+    hours, remainder = divmod(seconds_int, 3600)
+    minutes, secs = divmod(remainder, 60)
+    if hours:
+        return f"{hours}h{minutes:02d}m{secs:02d}s"
+    if minutes:
+        return f"{minutes}m{secs:02d}s"
+    return f"{secs}s"
+
+
+def atomic_write_json(path: Path, payload: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp_path = path.with_suffix(path.suffix + ".tmp")
+    tmp_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    tmp_path.replace(path)
+
+
+def retry_result_from_dict(data: dict[str, Any]) -> RetryResult:
+    return RetryResult(
+        id=str(data.get("id", "")),
+        question=str(data.get("question", "")),
+        old_value=to_float(data.get("old_value", 0.0)),
+        accepted=bool(data.get("accepted")),
+        selected_value=(
+            to_float(data["selected_value"])
+            if data.get("selected_value") is not None
+            else None
+        ),
+        selected_program=(
+            str(data["selected_program"])
+            if data.get("selected_program") is not None
+            else None
+        ),
+        confidence_reason=(
+            str(data["confidence_reason"])
+            if data.get("confidence_reason") is not None
+            else None
+        ),
+        agreement_count=int(data.get("agreement_count") or 0),
+        target_reason=str(data.get("target_reason") or ""),
+        detail_source=str(data.get("detail_source") or ""),
+        candidates=list(data.get("candidates") or []),
+    )
+
+
+def load_partial_results(output_dir: Path, valid_ids: set[str]) -> dict[str, RetryResult]:
+    partial_path = output_dir / PARTIAL_DETAILS_FILE
+    if not partial_path.exists():
+        return {}
+
+    completed: dict[str, RetryResult] = {}
+    skipped_lines = 0
+    with partial_path.open("r", encoding="utf-8") as f:
+        for line_no, line in enumerate(f, start=1):
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                result = retry_result_from_dict(json.loads(line))
+            except Exception as exc:
+                skipped_lines += 1
+                print(
+                    f"warning: skipped invalid checkpoint line {line_no}: {exc}",
+                    flush=True,
+                )
+                continue
+            if result.id in valid_ids:
+                completed[result.id] = result
+    if skipped_lines:
+        print(f"warning: skipped {skipped_lines} invalid checkpoint lines", flush=True)
+    return completed
+
+
+def append_partial_result(output_dir: Path, result: RetryResult) -> None:
+    output_dir.mkdir(parents=True, exist_ok=True)
+    partial_path = output_dir / PARTIAL_DETAILS_FILE
+    with partial_path.open("a", encoding="utf-8") as f:
+        f.write(json.dumps(asdict(result), ensure_ascii=False) + "\n")
+        f.flush()
+        os.fsync(f.fileno())
+
+
+def ordered_results(
+    targets: list[dict[str, Any]],
+    completed: dict[str, RetryResult],
+    new_results: list[RetryResult] | None = None,
+) -> list[RetryResult]:
+    merged = dict(completed)
+    for result in new_results or []:
+        merged[result.id] = result
+    return [merged[str(target["id"])] for target in targets if str(target["id"]) in merged]
+
+
+def reset_run_outputs(output_dir: Path) -> None:
+    for filename in (
+        PARTIAL_DETAILS_FILE,
+        PROGRESS_STATE_FILE,
+        CANDIDATE_PROGRAMS_FILE,
+        "retry_details.json",
+        "retry_predictions.json",
+    ):
+        path = output_dir / filename
+        if path.exists():
+            path.unlink()
+
+
+def progress_payload(
+    *,
+    args: argparse.Namespace,
+    started_at: float,
+    target_count: int,
+    completed_count: int,
+    accepted_count: int,
+    last_row_id: str | None,
+    status: str,
+) -> dict[str, Any]:
+    elapsed = time.time() - started_at
+    avg_per_row = elapsed / completed_count if completed_count else None
+    remaining = max(0, target_count - completed_count)
+    eta_seconds = avg_per_row * remaining if avg_per_row is not None else None
+    return {
+        "status": status,
+        "updated_at": utc_now_iso(),
+        "model": args.model,
+        "output_dir": str(args.output_dir),
+        "num_samples": args.num_samples,
+        "temperature": args.temperature,
+        "top_p": args.top_p,
+        "max_new_tokens": args.max_new_tokens,
+        "max_model_len": args.max_model_len,
+        "target_count": target_count,
+        "completed_count": completed_count,
+        "accepted_count": accepted_count,
+        "remaining_count": remaining,
+        "last_row_id": last_row_id,
+        "elapsed_seconds": round(elapsed, 3),
+        "elapsed": format_duration(elapsed),
+        "eta_seconds": round(eta_seconds, 3) if eta_seconds is not None else None,
+        "eta": format_duration(eta_seconds),
+    }
+
+
+def write_progress_state(
+    args: argparse.Namespace,
+    *,
+    started_at: float,
+    target_count: int,
+    completed_count: int,
+    accepted_count: int,
+    last_row_id: str | None,
+    status: str,
+) -> None:
+    atomic_write_json(
+        args.output_dir / PROGRESS_STATE_FILE,
+        progress_payload(
+            args=args,
+            started_at=started_at,
+            target_count=target_count,
+            completed_count=completed_count,
+            accepted_count=accepted_count,
+            last_row_id=last_row_id,
+            status=status,
+        ),
+    )
 
 
 def load_submission(path: Path) -> dict[str, dict[str, str]]:
@@ -497,7 +682,39 @@ def print_targets(targets: list[dict[str, Any]]) -> None:
         )
 
 
-def run_generation(args: argparse.Namespace, targets: list[dict[str, Any]]) -> list[RetryResult]:
+def print_run_config(
+    args: argparse.Namespace,
+    *,
+    target_count: int,
+    pending_count: int,
+    completed_count: int,
+) -> None:
+    print("Run008 targeted retry configuration:", flush=True)
+    print(f"  model={args.model}", flush=True)
+    print(f"  output_dir={args.output_dir}", flush=True)
+    print(f"  targets={target_count} completed={completed_count} pending={pending_count}", flush=True)
+    print(
+        "  generation="
+        f"num_samples={args.num_samples} "
+        f"temperature={args.temperature} "
+        f"top_p={args.top_p} "
+        f"max_new_tokens={args.max_new_tokens} "
+        f"max_model_len={args.max_model_len} "
+        f"gpu_memory_utilization={args.gpu_memory_utilization}",
+        flush=True,
+    )
+    print(f"  resume={args.resume}", flush=True)
+
+
+def run_generation(
+    args: argparse.Namespace,
+    targets: list[dict[str, Any]],
+    *,
+    started_at: float,
+    target_count: int,
+    initial_completed_count: int,
+    initial_accepted_count: int,
+) -> list[RetryResult]:
     dataset_rows = load_dataset_rows_by_id()
 
     model = QwenInference(
@@ -511,9 +728,11 @@ def run_generation(args: argparse.Namespace, targets: list[dict[str, Any]]) -> l
 
     results: list[RetryResult] = []
     args.output_dir.mkdir(parents=True, exist_ok=True)
-    candidate_path = args.output_dir / "candidate_programs.jsonl"
+    candidate_path = args.output_dir / CANDIDATE_PROGRAMS_FILE
+    completed_count = initial_completed_count
+    accepted_count = initial_accepted_count
 
-    with candidate_path.open("w", encoding="utf-8") as candidate_file:
+    with candidate_path.open("a", encoding="utf-8") as candidate_file:
         for target_idx, target in enumerate(targets, start=1):
             row_id = str(target["id"])
             if row_id not in dataset_rows:
@@ -537,7 +756,17 @@ def run_generation(args: argparse.Namespace, targets: list[dict[str, Any]]) -> l
             )
 
             candidates: list[Candidate] = []
-            print(f"[{target_idx}/{len(targets)}] retry {row_id}")
+            elapsed = time.time() - started_at
+            remaining_before = target_count - completed_count
+            avg_per_row = elapsed / completed_count if completed_count else None
+            eta_seconds = avg_per_row * remaining_before if avg_per_row is not None else None
+            print(
+                f"[{completed_count + 1}/{target_count}] "
+                f"id={row_id} pending_index={target_idx}/{len(targets)} "
+                f"remaining={remaining_before} elapsed={format_duration(elapsed)} "
+                f"eta={format_duration(eta_seconds)}",
+                flush=True,
+            )
             for sample_index in range(args.num_samples):
                 try:
                     raw_output = model.generate_text(
@@ -559,6 +788,13 @@ def run_generation(args: argparse.Namespace, targets: list[dict[str, Any]]) -> l
                 candidates.append(cand)
                 candidate_file.write(json.dumps(asdict(cand), ensure_ascii=False) + "\n")
                 candidate_file.flush()
+                value_text = format_float(cand.value) if cand.value is not None else "None"
+                print(
+                    f"  sample {sample_index + 1}/{args.num_samples} "
+                    f"valid={cand.valid} value={value_text} "
+                    f"reason={cand.reject_reason or cand.repair_reason or 'ok'}",
+                    flush=True,
+                )
 
             selected, reason, agreement = select_candidate(candidates)
             retry_result = RetryResult(
@@ -575,6 +811,30 @@ def run_generation(args: argparse.Namespace, targets: list[dict[str, Any]]) -> l
                 candidates=[asdict(cand) for cand in candidates],
             )
             results.append(retry_result)
+            append_partial_result(args.output_dir, retry_result)
+            completed_count += 1
+            if retry_result.accepted:
+                accepted_count += 1
+            write_progress_state(
+                args,
+                started_at=started_at,
+                target_count=target_count,
+                completed_count=completed_count,
+                accepted_count=accepted_count,
+                last_row_id=row_id,
+                status="running",
+            )
+            selected_value = (
+                format_float(retry_result.selected_value)
+                if retry_result.selected_value is not None
+                else "None"
+            )
+            print(
+                f"  completed id={row_id} accepted={retry_result.accepted} "
+                f"value={selected_value} agreement={retry_result.agreement_count} "
+                f"reason={retry_result.confidence_reason}",
+                flush=True,
+            )
     return results
 
 
@@ -602,7 +862,9 @@ def write_outputs(output_dir: Path, results: list[RetryResult]) -> None:
     print(f"accepted retries: {accepted}")
     print(f"retry_details: {output_dir / 'retry_details.json'}")
     print(f"retry_predictions: {output_dir / 'retry_predictions.json'}")
-    print(f"candidate_programs: {output_dir / 'candidate_programs.jsonl'}")
+    print(f"partial_details: {output_dir / PARTIAL_DETAILS_FILE}")
+    print(f"progress_state: {output_dir / PROGRESS_STATE_FILE}")
+    print(f"candidate_programs: {output_dir / CANDIDATE_PROGRAMS_FILE}")
 
 
 def main() -> None:
@@ -626,12 +888,66 @@ def main() -> None:
         print_targets(targets)
         return
 
+    args.output_dir.mkdir(parents=True, exist_ok=True)
+    if not args.resume:
+        reset_run_outputs(args.output_dir)
+
     if not targets:
-        args.output_dir.mkdir(parents=True, exist_ok=True)
         write_outputs(args.output_dir, [])
         return
 
-    results = run_generation(args, targets)
+    started_at = time.time()
+    valid_ids = {str(target["id"]) for target in targets}
+    completed = load_partial_results(args.output_dir, valid_ids) if args.resume else {}
+    pending_targets = [target for target in targets if str(target["id"]) not in completed]
+    completed_count = len(completed)
+    accepted_count = sum(result.accepted for result in completed.values())
+
+    print_run_config(
+        args,
+        target_count=len(targets),
+        pending_count=len(pending_targets),
+        completed_count=completed_count,
+    )
+    write_progress_state(
+        args,
+        started_at=started_at,
+        target_count=len(targets),
+        completed_count=completed_count,
+        accepted_count=accepted_count,
+        last_row_id=None,
+        status="running" if pending_targets else "completed",
+    )
+
+    if completed and args.resume:
+        print(
+            f"resume: loaded {completed_count} completed rows from "
+            f"{args.output_dir / PARTIAL_DETAILS_FILE}",
+            flush=True,
+        )
+
+    if pending_targets:
+        run_generation(
+            args,
+            pending_targets,
+            started_at=started_at,
+            target_count=len(targets),
+            initial_completed_count=completed_count,
+            initial_accepted_count=accepted_count,
+        )
+
+    final_completed = load_partial_results(args.output_dir, valid_ids)
+    results = ordered_results(targets, final_completed)
+    final_accepted = sum(result.accepted for result in results)
+    write_progress_state(
+        args,
+        started_at=started_at,
+        target_count=len(targets),
+        completed_count=len(results),
+        accepted_count=final_accepted,
+        last_row_id=results[-1].id if results else None,
+        status="completed" if len(results) == len(targets) else "partial",
+    )
     write_outputs(args.output_dir, results)
 
 
