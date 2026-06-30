@@ -324,6 +324,13 @@ Realistic level: Possible but rule-dependent.
 Why this could beat `0.65789`: stronger models may reduce extraction mistakes
 and malformed DSL, especially when used narrowly on hard rows.
 
+Run011 feasibility update: `openai/gpt-oss-120b` successfully loaded on
+`1x NVIDIA A100 80GB` through SGLang with an OpenAI-compatible endpoint. The
+first 10-row adapter smoke produced parseable DSL and one actual hybrid change,
+but it was not submitted. The next step for this path is prompt improvement and
+another 10-row smoke; do not scale to 50-100 rows until the smoke recovers at
+least 3 clearly auditable rows.
+
 ### F. Full Verification Loop / Agentic Solver
 
 Build a bounded solver loop:

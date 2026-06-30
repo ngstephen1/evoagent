@@ -162,6 +162,7 @@ Security warning:
 | Run007 | Tiny Run003 + Run006 fallback | Not submitted | `assignment03/runs/kaggle_hybrid_003_006/submission_checked.csv` | Valid, but only changed 2 rows and one conflicted with Run004; medium-risk private-leaderboard gamble; not recommended for final. |
 | Run008 filtered | Targeted retry over Run003 zero rows, keeping only `agreement_count >= 2` recoveries | 0.65587 | `assignment03/runs/kaggle_hybrid_retry_run008_agree2/submission_checked.csv` | Previous best. Recovered 6 higher-confidence zero/fallback rows from Run003. |
 | Run009-lite safe | Suspicious-row targeted retry over Run008 filtered, excluding unchanged rows and new extreme outliers | 0.65789 | `assignment03/runs/kaggle_hybrid_retry_run009_lite_safe/submission_checked.csv` | Current primary final. Kept 3 auditable changes and improved public score without increasing extreme count. |
+| Run011 GPT-OSS smoke | SGLang-served `openai/gpt-oss-120b` feasibility and adapter smoke | Not submitted | `assignment03/runs/kaggle_run011_model_smoke/` | Feasibility only. 120B loaded on 1x A100 and produced parseable DSL, but the first 10-row smoke changed only one row. |
 
 ### Why Run009-Lite Safe Is Best So Far
 
@@ -288,9 +289,22 @@ The completed Run009-lite safe artifacts are:
 | Safe submitted output | `assignment03/runs/kaggle_hybrid_retry_run009_lite_safe/submission_checked.csv` |
 | Public score | `0.65789` |
 
+The Run011 GPT-OSS feasibility artifacts are:
+
+| Item | Value |
+|---|---|
+| Model | `openai/gpt-oss-120b` |
+| Serving stack | SGLang OpenAI-compatible API |
+| GPU | `1x NVIDIA A100 80GB` |
+| Feasibility logs | `assignment03/runs/run011_feasibility_logs/` |
+| Smoke retry output | `assignment03/runs/kaggle_run011_model_smoke/` |
+| Smoke hybrid output | `assignment03/runs/kaggle_hybrid_run011_model_smoke/` |
+| Status | Feasibility only; not submitted |
+
 The practical recommendation is to freeze Kaggle with Run009-lite safe as the
 primary final candidate unless the team explicitly decides to run another
-narrow, auditable retry experiment.
+narrow, auditable retry experiment. If Run011 is continued, improve the prompt
+and run another 10-row smoke before any longer 50-100 row attempt.
 
 ## 10. Quick Commands
 

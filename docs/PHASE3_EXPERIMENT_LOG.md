@@ -493,6 +493,70 @@ Run009-lite candidate's new extreme outlier. This supports the same overall
 lesson as Run008: narrow, executable, agreement-filtered changes are useful;
 broad or high-magnitude replacements remain risky.
 
+## Run 011 - GPT-OSS-120B Feasibility and Smoke
+
+| Field | Value |
+|---|---|
+| Date | 2026-06-30 |
+| Branch | `integration/evoagent-arc` |
+| Method | SGLang-served `openai/gpt-oss-120b` adapter smoke over suspicious rows |
+| Base submission | `assignment03/runs/kaggle_hybrid_retry_run009_lite_safe/submission_checked.csv` |
+| Feasibility logs | `assignment03/runs/run011_feasibility_logs/` |
+| Smoke retry output | `assignment03/runs/kaggle_run011_model_smoke/` and `assignment03/runs/kaggle_run011_model_smoke_v2/` |
+| Smoke hybrid output | `assignment03/runs/kaggle_hybrid_run011_model_smoke/` and `assignment03/runs/kaggle_hybrid_run011_model_smoke_v2/` |
+| Kaggle status | Not submitted |
+| Public score | Not applicable |
+
+### Feasibility Result
+
+Run 011 tested whether `openai/gpt-oss-120b` can run on the ARC TinkerCliffs
+setup before investing in a larger score attempt. The model loaded successfully
+on `1x NVIDIA A100 80GB` through SGLang with `--tp 1`, `context_len=8192`, and
+observed `mxfp4` quantization. The server started on
+`http://127.0.0.1:30000`, `/v1/models` responded, and `/v1/chat/completions`
+returned model outputs.
+
+The main caveat is response format. GPT-OSS responses include channel markup
+such as `<|channel|>analysis` and `<|channel|>final<|message|>`, so a small
+Phase 3-only adapter was added to extract the final answer and parse executable
+DSL.
+
+### Smoke Result
+
+The first 10-row smoke used `gpt-oss-120b` through the SGLang OpenAI-compatible
+endpoint with 3 samples per row. It produced executable DSL on some rows:
+
+- Target rows: 10.
+- Accepted retries: 4.
+- Model high-confidence rows: 8.
+- Hybrid changed rows: 1.
+- Zero count: 4 -> 3.
+- Extreme `abs(value) > 1e6` count: 9 -> 9.
+- `safe_to_submit`: false.
+
+The only changed row was:
+
+| ID | Old | New | Program | Agreement |
+|---|---:|---:|---|---:|
+| `masvn/2020/2020164-DIG_Q3Update_Tradingbuy_MAS_20201117-VN-N/page_1_QA4` | 0 | 655 | `add(600,55)` | 2 |
+
+This was useful as a feasibility result but not enough for a Kaggle submission.
+The prior retry runs had already produced nearby values for this row, and one
+changed row is too small to justify a public-leaderboard attempt.
+
+### Follow-Up
+
+After the first smoke, the prompt and builder were tightened:
+
+- Require exact FinQA DSL syntax such as `subtract(125, 100), divide(#0, 100)`.
+- Forbid JSON operator-list DSL, Python, equations, markdown, nested calls, and explanations.
+- Require `confidence`, `change_decision`, and `unit_reason`.
+- Change the smoke builder to require both high model confidence and explicit `change_decision: "change"` before changing a row.
+
+Run 011 should remain a feasibility path until a stronger 10-row smoke recovers
+several clearly auditable rows. Run 009-lite safe remains the current best
+submission at `0.65789`.
+
 ## Current Best
 
 | Rank | Run | Public Score | Notes |
@@ -502,6 +566,7 @@ broad or high-magnitude replacements remain risky.
 | 3 | Run 003 | 0.64574 | Previous fallback-hybrid best and useful private-LB hedge. |
 | 4 | Run 004 | 0.64574 | Alternate only; same public score as Run 003 with 4 extra fallback rows. |
 | 5 | Run 005 | 0.64170 | Do not use as final; 14 numeric post-processing changes reduced public score. |
+| - | Run 011 | Not submitted | GPT-OSS-120B feasibility and adapter smoke only; no Kaggle submission. |
 | - | Run 006 | Not submitted | Generated but not submitted; context-expanded rerun had more zeros than Run001. |
 | - | Run 007 | Not submitted | Validated but held back; medium-risk private-LB gamble. |
 | 6 | Run 001 | 0.56477 | Best single-strategy baseline so far. |

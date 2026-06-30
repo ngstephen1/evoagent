@@ -20,6 +20,7 @@ Current best Kaggle candidate:
 | Run007 | Run003 fallback to Run006 nonzero | Not submitted | Rejected | Only 2 changes, medium-risk. |
 | Run008 filtered | Targeted retry over Run003 zero rows, agreement >= 2 | 0.65587 | Previous best | 6 high-confidence replacements; first targeted-retry gain. |
 | Run009-lite safe | Suspicious-row retry over Run008, filtered to safe meaningful changes | 0.65789 | Primary final | 3 auditable changes; improved without increasing extreme outliers. |
+| Run011 GPT-OSS smoke | `openai/gpt-oss-120b` adapter feasibility on ARC SGLang | Not submitted | Feasibility only | 120B loaded on 1x A100 and produced parseable DSL, but first smoke changed only one row. |
 
 What worked:
 
@@ -123,6 +124,8 @@ Broad replacement is risky because the public leaderboard already penalized appa
 - Effort: medium.
 - Risk: policy and reproducibility dependent.
 - Method: check assignment and Kaggle rules first, then consider a stronger model only if it is allowed, reproducible, and documented.
+- Current status: Run011 confirmed `openai/gpt-oss-120b` can load on `1x A100 80GB` through SGLang and can be adapted by stripping GPT-OSS channel markup before parsing final JSON/DSL.
+- Next step: improve the Run011 prompt and repeat a 10-row smoke before scaling to 50-100 suspicious rows.
 - Boundary: do not use hidden-label leakage, manual test labeling, non-reproducible private outputs, or any method that violates course/Kaggle rules.
 
 ## 4. Recommended Next Experiment
@@ -238,6 +241,7 @@ broad replacement of nonzero Run008 filtered predictions.
 - Stop if fewer than 3 useful new rows are recovered.
 - Stop if dev proxy checks or candidate inspection suggest broad harm.
 - Stop if 1-2 further narrow retry attempts do not beat `0.65789`.
+- For Run011-style stronger-model experiments, stop before a long run if the 10-row smoke changes fewer than 3 rows or produces non-executable DSL.
 - Stop if the only remaining changes are private-leaderboard gambles with weak evidence.
 - Move to ThinkFlic packaging after that.
 

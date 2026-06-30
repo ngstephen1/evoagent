@@ -125,6 +125,7 @@ far is Run 009-lite safe:
 | Run 005 | Conservative numeric post-processing over Run003 | 0.64170 | Ablation |
 | Run 008 filtered | Targeted retry for Run003 zero rows, `agreement_count >= 2` | 0.65587 | Previous best |
 | Run 009-lite safe | Safe filtered retry over Run008 suspicious rows | 0.65789 | Current best |
+| Run 011 GPT-OSS smoke | `openai/gpt-oss-120b` adapter feasibility on ARC SGLang | Not submitted | Feasibility only |
 
 The Run 003 hybrid is built from two checked submissions by replacing only
 Run001 `0.0` predictions with nonzero Run002 predictions. To support auditable
@@ -145,8 +146,10 @@ Run 005 showed that conservative numeric rules were structurally valid but hurt
 the public score slightly. Run 008 showed that narrow targeted retry can recover
 additional fallback rows when filtered by candidate agreement. Run 009-lite
 safe added a smaller gain by keeping only three auditable changes and avoiding
-a new extreme outlier. Keep Run 009-lite safe as the current best unless a later validated run improves the
-leaderboard.
+a new extreme outlier. Run 011 confirmed that `openai/gpt-oss-120b` can load on
+`1x A100 80GB` via SGLang and produce parseable DSL through an adapter, but the
+10-row smoke changed only one row and was not submitted. Keep Run 009-lite safe
+as the current best unless a later validated run improves the leaderboard.
 
 ---
 

@@ -129,6 +129,7 @@ python3 graders/grade_stage4_harness.py
 | Kaggle Run 005 | Submitted | Conservative numeric post-processing scored `0.64170`; kept as an ablation, not current best. |
 | Kaggle Run 008 Filtered | Submitted | Previous best: targeted retry over Run003 zero rows with `agreement_count >= 2`, public score `0.65587`. |
 | Kaggle Run 009-Lite Safe | Submitted | Current best: filtered targeted retry over Run008 suspicious rows, public score `0.65789`, private score pending. |
+| Kaggle Run 011 GPT-OSS | Feasibility only | `openai/gpt-oss-120b` loads on `1x A100 80GB` through SGLang; adapter smoke works, not submitted. |
 
 ## Proof Generation
 
@@ -170,7 +171,7 @@ Current best Kaggle submission is Run 009-lite safe:
 | Status | `COMPLETE` |
 | Rows | `494` |
 
-Tracked experiment notes live in [`docs/PHASE3_EXPERIMENT_LOG.md`](docs/PHASE3_EXPERIMENT_LOG.md). Recorded submissions include Run 001 at `0.56477`, Run 002 at `0.47975`, Run 003 at `0.64574`, Run 004 at `0.64574`, Run 005 at `0.64170`, Run 008 filtered at `0.65587`, and Run 009-lite safe at `0.65789`.
+Tracked experiment notes live in [`docs/PHASE3_EXPERIMENT_LOG.md`](docs/PHASE3_EXPERIMENT_LOG.md). Recorded submissions include Run 001 at `0.56477`, Run 002 at `0.47975`, Run 003 at `0.64574`, Run 004 at `0.64574`, Run 005 at `0.64170`, Run 008 filtered at `0.65587`, and Run 009-lite safe at `0.65789`. Run 011 is documented as a GPT-OSS-120B feasibility/smoke path only and was not submitted.
 
 A typical workflow is:
 
