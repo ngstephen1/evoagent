@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Phase 3 Report — Melanie's EvoAgent Improvements</title>
+<style>
+  :root{
+    --bg:#0f1117; --panel:#171a23; --ink:#e6e8ee; --muted:#9aa3b2; --line:#2a2f3d;
+    --accent:#6366f1; --accent2:#22d3ee; --good:#10b981;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+  .wrap{max-width:900px;margin:0 auto;padding:40px 24px 90px}
+  h1{font-size:29px;line-height:1.25;margin:0 0 18px;letter-spacing:-.4px}
+  h2{font-size:21px;margin:38px 0 12px;padding-bottom:8px;border-bottom:2px solid var(--line)}
+  p{margin:10px 0}
+  a{color:var(--accent2)}
+  code{background:#0b0d13;border:1px solid var(--line);border-radius:5px;padding:1px 6px;
+    font:13px/1.5 "SF Mono",Menlo,Consolas,monospace;color:#a5f3fc}
+  pre{background:#0b0d13;border:1px solid var(--line);border-radius:10px;padding:14px 16px;
+    overflow:auto;font:12.5px/1.6 "SF Mono",Menlo,Consolas,monospace;color:#cbd5e1}
+  table{width:100%;border-collapse:collapse;margin:14px 0;font-size:14.5px}
+  th,td{text-align:left;padding:9px 11px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{color:var(--muted);font-weight:600;font-size:12.5px;text-transform:uppercase;letter-spacing:.4px}
+  tr:hover td{background:#1b1f2b}
+  .num{text-align:right;font-variant-numeric:tabular-nums}
+  ul li,ol li{margin:5px 0}
+  .win{color:#6ee7b7;font-weight:700}
+  .foot{color:var(--muted);font-size:13px;margin-top:44px;text-align:center}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>Phase 3 Report — Melanie's EvoAgent Improvements<br>(Advanced NLP06 Assignment 03)</h1>
+
+  <h2>Overview</h2>
+  <p>This report documents the Phase 3 improvements made by Melanie to the EvoAgent Kaggle pipeline, written for the team
+  (Stephen) with enough technical detail to reproduce and extend the work. Starting from the team's previous best public
+  score of 0.65789 (the Run009-lite hybrid built on a 4-billion-parameter model), the work in this session raised the
+  public leaderboard score to <span class="win">0.69433</span>, an improvement of about 3.6 points. The gains came from
+  three changes applied one at a time: a larger base model, self-consistency inference, and a majority-vote ensemble
+  across diverse models.</p>
+  <p>All experiments ran on a compute node with four NVIDIA H100 80GB GPUs accessed over SSH, using SGLang for
+  inference. Every model used is an open-weight model of at most nine billion parameters, in line with the Phase 3
+  competition rules.</p>
+  <p>Team members:</p>
+  <table>
+    <tr><th>Member</th><th>Student ID</th><th>Kaggle ID</th></tr>
+    <tr><td>Melanie</td><td>TBD</td><td><code>yeyeezyzeus</code></td></tr>
+    <tr><td>Nguyen Phan Nguyen - Stephen</td><td>TBD</td><td><code>nguynphannguyn</code></td></tr>
+  </table>
+
+  <h2>Methodology</h2>
+  <p>The improvement process followed a strict single-variable discipline: exactly one factor was changed per
+  experiment, the effect was measured on the local dev split and then on the Kaggle public leaderboard, and only
+  validated changes were carried forward. This made each gain attributable to a specific cause and avoided confounding
+  several changes at once. The prior 4B hybrid (0.65789) was retained throughout as the control to beat.</p>
+
+  <h2>Model Upgrade (4B to 8B)</h2>
+  <p>The first change replaced the quantized 4B model (<code>QuantTrio/Qwen3.5-4B-AWQ</code>) with the full-precision 8B
+  model <code>Qwen/Qwen3-8B</code>, holding the prompting strategy and all loop settings fixed. The original model was
+  AWQ-quantized only because the Modal A10G had 24 GB of memory; with 80 GB H100s that constraint is gone, so the 8B
+  model was loaded in bfloat16 (no quantization), which avoids the small quality loss quantization introduces.</p>
+  <p>To use the four GPUs, data parallelism was chosen over tensor parallelism. An 8B model fits comfortably on a single
+  80 GB card, so tensor parallelism (sharding one model across GPUs) would only add cross-GPU communication overhead.
+  Data parallelism instead loads four independent replicas and splits the request batch across them, giving roughly four
+  times the throughput with identical outputs. This is exposed through a new <code>--dp-size</code> flag passed to
+  <code>sgl.Engine(..., dp_size=N)</code> in <code>src/model.py</code>. The model change alone raised dev accuracy from
+  0.4833 to 0.650, the largest single quality gain to the base solver.</p>
+
+  <h2>Self-Consistency Inference</h2>
+  <p>The second change introduced self-consistency at inference time. At temperature 0 the model produces a single
+  greedy program per question; if that one attempt misreads a table row or picks the wrong operation, the answer is
+  wrong. Self-consistency instead draws k samples per question at a non-zero temperature, executes every candidate
+  program with the local DSL evaluator, and keeps the answer whose executed numeric value is the most common.</p>
+  <p>The mechanism is implemented in <code>src/executor.py</code>. When <code>self_consistency_k &gt; 1</code>, each
+  prompt is replicated k times before the batched <code>generate_batch</code> call, a new <code>temperature_override</code>
+  argument forces non-zero sampling for that call only, and the k outputs per question are grouped and passed to a new
+  helper, <code>_self_consistency_vote</code>. That helper executes each candidate with <code>evaluate_program</code>,
+  buckets the results by executed value, and returns the candidate whose value has the most votes (falling back to the
+  first sample if none execute). Voting on the executed value, rather than on the raw program text, means programs that
+  differ syntactically but compute the same number are correctly counted together. The same voting path is reused at
+  submission time in <code>submit.py</code>, so training-time and test-time behaviour match.</p>
+  <p>With k=5 the dev accuracy reached <b>0.704</b>, and the count of zero-valued (failed) predictions fell from 15 to 11
+  as k rose to 16. On the Kaggle public set the 8B self-consistency submissions scored 0.64979 (k=5) and 0.65587 (k=16).
+  The small Kaggle gain from k=5 to k=16 shows this lever saturates quickly.</p>
+
+  <h2>Diverse-Model Ensemble</h2>
+  <p>A single strong model did not by itself beat the engineered 4B hybrid on Kaggle. The 8B self-consistency submission
+  scored 0.65587 against the hybrid's 0.65789, even though its dev accuracy (0.704) was far higher. This gap reflects two
+  facts: the dev and test distributions differ, and the hybrid benefits from explicit failure patching that a single
+  model does not perform.</p>
+  <p>The decisive gain came from ensembling. A second, differently trained model, <code>Qwen/Qwen2.5-Coder-7B-Instruct</code>,
+  was used with the same strategy and self-consistency (k=8) to generate an additional submission. On its own this model
+  scored only 0.48178, but its errors are different from the Qwen3 models', so it contributes useful diversity to a
+  vote.</p>
+  <p>The final method is a per-row majority vote across three submissions: the 8B self-consistency submission (k=16), the
+  previous 4B hybrid, and the Coder-7B submission. It is implemented in a new standalone script,
+  <code>phase3_ensemble_vote.py</code>, which runs locally on CPU with no model or GPU. For each test id it collects the
+  three predicted values, groups values that are numerically equal within a relative/absolute tolerance, and keeps the
+  value with the most votes. Ties are broken in favour of a designated priority submission (the previous hybrid), so the
+  ensemble cannot lose to it on an evenly split row. A comparison of the two strongest submissions showed they agree on
+  about 65 percent of rows and disagree on roughly 175 rows; the vote decides those disagreements toward the more
+  frequently supported answer. The resulting ensemble changed 70 rows relative to the previous best and scored
+  <span class="win">0.69433</span> on the public leaderboard.</p>
+
+  <h2>Code Changes</h2>
+  <p>All changes are Phase 3 additions and do not modify EvoAgent core logic, the DSL evaluator, or the graders. They are
+  backward compatible: every new flag defaults to the previous single-GPU, single-sample behaviour.</p>
+  <table>
+    <tr><th>File</th><th>Change</th></tr>
+    <tr><td><code>src/model.py</code></td><td>Added <code>tp_size</code>, <code>dp_size</code>,
+      <code>self_consistency_k</code>, <code>self_consistency_temp</code> to <code>QwenInference</code>; pass
+      <code>tp_size</code>/<code>dp_size</code> to <code>sgl.Engine</code>; add a <code>temperature_override</code>
+      argument to <code>generate_batch</code> for sampling.</td></tr>
+    <tr><td><code>src/executor.py</code></td><td>Added <code>_self_consistency_vote</code> (execute-and-vote helper);
+      <code>evaluate</code> now expands prompts k times and votes when <code>self_consistency_k &gt; 1</code>.</td></tr>
+    <tr><td><code>src/main.py</code></td><td>Added <code>--tp-size</code>, <code>--dp-size</code>,
+      <code>--self-consistency-k</code>, <code>--self-consistency-temp</code> CLI flags, forwarded to
+      <code>QwenInference</code>.</td></tr>
+    <tr><td><code>arc_proofs.py</code></td><td>Added the same four flags and forwards them to <code>main.py</code>.</td></tr>
+    <tr><td><code>submit.py</code></td><td>Added the same flags; applies self-consistency voting when generating test
+      predictions.</td></tr>
+    <tr><td><code>phase3_ensemble_vote.py</code></td><td>New script: per-row majority-vote ensemble of N submission CSVs
+      with a priority tiebreaker (CPU-only).</td></tr>
+  </table>
+
+  <h2>Kaggle Experiments</h2>
+  <table>
+    <tr><th>Run</th><th>Method</th><th class="num">Public Score</th><th>Decision</th></tr>
+    <tr><td>8B SC k=5</td><td>Qwen3-8B + self-consistency (k=5)</td><td class="num">0.64979</td><td>Not final</td></tr>
+    <tr><td>8B SC k=16</td><td>Qwen3-8B + self-consistency (k=16)</td><td class="num">0.65587</td><td>Not final</td></tr>
+    <tr><td>Coder-7B</td><td>Qwen2.5-Coder-7B, standalone</td><td class="num">0.48178</td><td>Diversity source only</td></tr>
+    <tr><td><b>Ensemble</b></td><td>3-way majority vote (8B k16 + hybrid + Coder-7B)</td><td class="num"><b class="win">0.69433</b></td><td>Primary final</td></tr>
+  </table>
+  <p class="muted">For reference, the previous team best was Run009-lite at 0.65789.</p>
+
+  <h2>Results Analysis</h2>
+  <p>The largest quality gain to the base solver was the model upgrade, which added 16.7 points of dev accuracy.
+  Self-consistency added a further gain on dev and reduced failure rows. The largest Kaggle gain, however, came from the
+  ensemble, which exceeded every individual submission by about 3.5 points.</p>
+  <p>The most important lesson is that a model which is weak in isolation can still strengthen an ensemble. The Coder-7B
+  model scored only 0.48178 on its own, yet its inclusion lifted the ensemble to 0.69433, because its errors differ from
+  those of the Qwen3 models and the majority vote exploits that diversity. Two corollaries follow for future work: adding
+  more independent models to an odd-sized vote is likely the highest-value next step, and diversity of a candidate model
+  matters more than its standalone accuracy.</p>
+
+  <h2>Reproducibility</h2>
+  <p>The strategy was evolved with the 8B model and self-consistency on the GPU node:</p>
+  <pre>python3 arc_proofs.py evolution --T 5 --train-size 200 --dev-size 240 \
+  --output-dir runs/exp_qwen3_8b_sc5 --model Qwen/Qwen3-8B \
+  --gpu-memory-utilization 0.9 --dp-size 4 --self-consistency-k 5</pre>
+  <p>The individual submissions were generated from that strategy:</p>
+  <pre>python3 submit.py --strategy-path runs/exp_qwen3_8b_sc5/iter_best_strategy.json \
+  --output-file runs/kaggle_8b_sc16/submission.csv --model Qwen/Qwen3-8B \
+  --dp-size 4 --self-consistency-k 16
+
+python3 submit.py --strategy-path runs/exp_qwen3_8b_sc5/iter_best_strategy.json \
+  --output-file runs/kaggle_coder7b/submission.csv \
+  --model Qwen/Qwen2.5-Coder-7B-Instruct --dp-size 4 --self-consistency-k 8</pre>
+  <p>The final ensemble was produced locally by majority vote:</p>
+  <pre>python3 phase3_ensemble_vote.py \
+  --inputs submission_8b_sc16.csv final_submission.csv submission_coder7b.csv \
+  --priority final_submission.csv \
+  --output submission_ensemble.csv</pre>
+
+  <h2>Next Steps</h2>
+  <p>The remaining gap to a much higher score is large; the base solver caps in the high-0.60s on this test set. The
+  recommended next experiments, in order of expected value:</p>
+  <ol>
+    <li>Expand the ensemble to a 5-way odd vote by adding two more non-gated diverse models (for example
+      <code>Qwen2.5-7B-Instruct</code> and <code>Mistral-7B-Instruct-v0.3</code>); an odd voter count removes tie-break
+      ambiguity.</li>
+    <li>Confidence-weighted voting: weight each model on a row by its self-consistency agreement count instead of an
+      equal vote.</li>
+    <li>Larger structural changes if time allows: LoRA fine-tuning on the train programs, or context/table-retrieval
+      compression to fix wrong-row extraction.</li>
+  </ol>
+  <p>Because grading is rank-based and the public score is only a proxy for the private leaderboard, the ensemble
+  (0.69433) should be kept as the primary final candidate alongside the stable 4B hybrid.</p>
+
+  <h2>Integrity Declaration Summary</h2>
+  <p>No hidden test labels, manual test labeling, or leaked answers were used. All Kaggle outputs came from documented
+  model inference runs and deterministic ensemble rules that can be reproduced from the commands above. Hugging Face
+  tokens, Kaggle credentials, private keys, and model weights are excluded from the repository.</p>
+
+  <p class="foot">Melanie · Advanced-NLP06 Assignment 03 (EvoAgent) · Phase-3 work log · open in any browser.</p>
+</div>
+</body>
+</html>

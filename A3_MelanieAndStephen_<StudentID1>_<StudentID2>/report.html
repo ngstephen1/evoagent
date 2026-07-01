@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Report Draft — EvoAgent Advanced NLP06 Assignment 03</title>
+<style>
+  :root{
+    --bg:#0f1117; --panel:#171a23; --ink:#e6e8ee; --muted:#9aa3b2; --line:#2a2f3d;
+    --accent:#6366f1; --accent2:#22d3ee; --good:#10b981;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+  .wrap{max-width:900px;margin:0 auto;padding:40px 24px 90px}
+  h1{font-size:30px;line-height:1.2;margin:0 0 20px;letter-spacing:-.4px}
+  h2{font-size:21px;margin:38px 0 12px;padding-bottom:8px;border-bottom:2px solid var(--line)}
+  p{margin:10px 0}
+  a{color:var(--accent2)}
+  code{background:#0b0d13;border:1px solid var(--line);border-radius:5px;padding:1px 6px;
+    font:13px/1.5 "SF Mono",Menlo,Consolas,monospace;color:#a5f3fc}
+  pre{background:#0b0d13;border:1px solid var(--line);border-radius:10px;padding:14px 16px;
+    overflow:auto;font:12.5px/1.6 "SF Mono",Menlo,Consolas,monospace;color:#cbd5e1}
+  table{width:100%;border-collapse:collapse;margin:14px 0;font-size:14.5px}
+  th,td{text-align:left;padding:9px 11px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{color:var(--muted);font-weight:600;font-size:12.5px;text-transform:uppercase;letter-spacing:.4px}
+  tr:hover td{background:#1b1f2b}
+  .num{text-align:right;font-variant-numeric:tabular-nums}
+  ul li{margin:5px 0}
+  .foot{color:var(--muted);font-size:13px;margin-top:44px;text-align:center}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>Report Draft — EvoAgent Advanced NLP06 Assignment 03</h1>
+
+  <h2>Overview</h2>
+  <p>This project implements EvoAgent for Vietnamese financial programmatic question answering. The system evolves
+  reasoning strategies, evaluates them on local financial QA splits, reflects on failures, proposes improved strategies,
+  and uses the best strategies for Kaggle prediction generation.</p>
+  <p>Milestone 1 is complete: Stages 0–4 pass local graders, and proof files were generated on VT ARC GPU
+  infrastructure. Phase 3 Kaggle experimentation is currently frozen with Run009-lite safe selected as the primary final
+  public candidate.</p>
+  <p>Team members:</p>
+  <table>
+    <tr><th>Member</th><th>Student ID</th><th>Kaggle ID</th></tr>
+    <tr><td>Melanie</td><td>TBD</td><td><code>yeyeezyzeus</code></td></tr>
+    <tr><td>Nguyen Phan Nguyen - Stephen</td><td>TBD</td><td><code>nguynphannguyn</code></td></tr>
+  </table>
+
+  <h2>EvoAgent Implementation</h2>
+  <p>The implementation covers the staged assignment components:</p>
+  <ul>
+    <li>Stage 0: sandbox prediction and proof generation.</li>
+    <li>Stage 1: executor evaluation loop and token accounting.</li>
+    <li>Stage 2: self-reflection over failure patterns.</li>
+    <li>Stage 3: self-proposal with DSL validation and dynamic examples.</li>
+    <li>Stage 4: evolution harness, parent selection, smoke testing, and history management.</li>
+  </ul>
+  <p>The local grader suite passed:</p>
+  <pre>python3 graders/grade_stage0.py
+python3 graders/grade_stage1_executor.py
+python3 graders/grade_stage2_reflector.py
+python3 graders/grade_stage3_proposer.py
+PYTHONPATH=. python3 graders/grade_smoke_proof.py
+python3 graders/grade_stage4_harness.py</pre>
+
+  <h2>Strategy Evolution</h2>
+  <p>The ARC evolution run produced best iteration 1:</p>
+  <table>
+    <tr><th>Metric</th><th class="num">Value</th></tr>
+    <tr><td>Baseline dev accuracy</td><td class="num">0.42</td></tr>
+    <tr><td>Best dev accuracy</td><td class="num">0.48333333333333334</td></tr>
+    <tr><td>Best iteration</td><td class="num">1</td></tr>
+  </table>
+  <p>The selected strategy for Run001 was:</p>
+  <pre>assignment03/runs/exp_self_arc/iter_best_strategy.json</pre>
+  <p>Proof and analysis artifacts in this package:</p>
+  <ul>
+    <li><code>evidence/evolution_proof.json</code></li>
+    <li><code>evidence/failure_mode_report.pdf</code></li>
+    <li><code>evidence/learning_curve.pdf</code></li>
+  </ul>
+
+  <h2>Kaggle Experiments</h2>
+  <table>
+    <tr><th>Run</th><th>Method</th><th class="num">Public Score</th><th>Decision</th></tr>
+    <tr><td>Run001</td><td>Best EvoAgent strategy baseline</td><td class="num">0.56477</td><td>Baseline</td></tr>
+    <tr><td>Run002</td><td>Iter003 table-op strategy</td><td class="num">0.47975</td><td>Not final</td></tr>
+    <tr><td>Run003</td><td>Hybrid Run001 fallback to Run002 nonzero</td><td class="num">0.64574</td><td>Previous best</td></tr>
+    <tr><td>Run004</td><td>Hybrid Run003 fallback to iter004 nonzero</td><td class="num">0.64574</td><td>Alternate</td></tr>
+    <tr><td>Run005</td><td>Conservative numeric post-processing</td><td class="num">0.64170</td><td>Not final</td></tr>
+    <tr><td>Run006</td><td>Context-expanded rerun</td><td class="num">Not submitted</td><td>Not final</td></tr>
+    <tr><td>Run007</td><td>Tiny Run003/Run006 hybrid</td><td class="num">Not submitted</td><td>Not final</td></tr>
+    <tr><td>Run008 filtered</td><td>Targeted retry over Run003 zero rows, agreement ≥ 2</td><td class="num">0.65587</td><td>Previous best</td></tr>
+    <tr><td>Run009-lite safe</td><td>Suspicious-row targeted retry over Run008, filtered to safe meaningful changes</td><td class="num">0.65789</td><td>Primary final</td></tr>
+  </table>
+
+  <h2>Final Hybrid Method</h2>
+  <p>The primary final file is:</p>
+  <pre>kaggle/final_submission.csv</pre>
+  <p>It is copied from Run009-lite safe:</p>
+  <pre>assignment03/runs/kaggle_hybrid_retry_run009_lite_safe/submission_checked.csv</pre>
+  <p>Run003 starts from Run001 and replaces only rows where Run001 predicted <code>0.0</code> and Run002 predicted a
+  nonzero value. This reduced zero-valued predictions from 112 to 11 and improved public score from 0.56477 to
+  0.64574.</p>
+  <p>Run008 filtered starts from Run003, retries only the remaining zero-valued rows with multi-sample DSL generation,
+  executes valid candidate programs, and keeps only retry recoveries with <code>agreement_count &gt;= 2</code>. This
+  changed 6 rows, reduced the final zero-valued prediction count to 5, and improved public score from 0.64574 to
+  0.65587.</p>
+  <p>Run009-lite safe starts from Run008 filtered, retries a narrow set of 60 suspicious rows, and keeps only three
+  meaningful high-confidence changes. It explicitly excludes an accepted retry that would have introduced a new extreme
+  outlier, reducing the chance of public-leaderboard overfitting. This improved public score from 0.65587 to 0.65789.</p>
+  <p>Run004 tied Run003 publicly but changed only four extra rows, so it remains an alternate/private-leaderboard hedge
+  rather than the primary final choice.</p>
+
+  <h2>Failure Analysis</h2>
+  <p>The strongest single-strategy run still had frequent fallback-like <code>0.0</code> predictions due to malformed or
+  invalid generated programs. Iter003 reduced zero predictions but was worse globally, indicating that confident nonzero
+  answers were often incorrect.</p>
+  <p>Hybrid fallback ensembling was the first effective method because it preserved Run001's stronger global reasoning
+  while selectively recovering useful answers from a complementary strategy. Broad numeric post-processing changed 14
+  rows but reduced public score, so it was rejected. Targeted retry then recovered additional failures, but only after
+  filtering out low-confidence candidates and new extreme outliers.</p>
+
+  <h2>Reproducibility</h2>
+  <p>Core environment setup:</p>
+  <pre>cd assignment03
+python3 -m venv .venv
+source .venv/bin/activate
+python3 -m pip install --upgrade pip
+pip install -r requirements.txt</pre>
+  <p>Run001 generation command on ARC:</p>
+  <pre>python3 submit.py \
+  --strategy-path ./runs/exp_self_arc/iter_best_strategy.json \
+  --output-file ./runs/kaggle_arc_best/submission.csv \
+  --model QuantTrio/Qwen3.5-4B-AWQ \
+  --gpu-memory-utilization 0.7</pre>
+  <p>Run002 generation command on ARC:</p>
+  <pre>python3 submit.py \
+  --strategy-path ./runs/exp_self_arc/iter_003_strategy.json \
+  --output-file ./runs/kaggle_iter003/submission.csv \
+  --model QuantTrio/Qwen3.5-4B-AWQ \
+  --gpu-memory-utilization 0.7</pre>
+  <p>The final Run009-lite safe hybrid was created by deterministic CSV replacement from accepted retry recoveries over
+  Run008 filtered. Full experiment notes are in <code>docs/PHASE3_EXPERIMENT_LOG.md</code> in the repository.</p>
+
+  <h2>Integrity Declaration Summary</h2>
+  <p>We did not use hidden test labels, manual test labeling, leaked answers, or test-specific external lookup. All
+  Kaggle outputs came from documented model inference runs and deterministic hybrid/post-processing experiments. Tokens,
+  private keys, and model weights are excluded from this package.</p>
+
+  <p class="foot">EvoAgent · Advanced-NLP06 Assignment 03 · report.md rendered as HTML · open in any browser.</p>
+</div>
+</body>
+</html>
