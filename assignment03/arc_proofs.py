@@ -139,6 +139,14 @@ def run_evolution(args: argparse.Namespace) -> bool:
             args.model,
             "--gpu-memory-utilization",
             str(args.gpu_memory_utilization),
+            "--tp-size",
+            str(args.tp_size),
+            "--dp-size",
+            str(args.dp_size),
+            "--self-consistency-k",
+            str(args.self_consistency_k),
+            "--self-consistency-temp",
+            str(args.self_consistency_temp),
             "--progressive-reflections",
             "--use-curriculum",
             "--afo-mode",
@@ -242,6 +250,30 @@ def parse_args() -> argparse.Namespace:
         type=float,
         default=DEFAULT_GPU_MEMORY,
         help="SGLang GPU memory utilization fraction.",
+    )
+    parser.add_argument(
+        "--tp-size",
+        type=int,
+        default=1,
+        help="Tensor-parallel size (shard one model across N GPUs; for models too big for one GPU).",
+    )
+    parser.add_argument(
+        "--dp-size",
+        type=int,
+        default=1,
+        help="Data-parallel size (N model replicas for throughput; recommended for small models).",
+    )
+    parser.add_argument(
+        "--self-consistency-k",
+        type=int,
+        default=1,
+        help="Self-consistency: sample K programs per question and majority-vote (1 = single greedy pass).",
+    )
+    parser.add_argument(
+        "--self-consistency-temp",
+        type=float,
+        default=0.6,
+        help="Sampling temperature used when --self-consistency-k > 1.",
     )
     parser.add_argument("--sandbox-dev-size", type=int, default=50, help="Dev examples for sandbox accuracy.")
     parser.add_argument("--T", type=int, default=5, help="Evolution iterations.")

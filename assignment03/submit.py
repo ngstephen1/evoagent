@@ -18,7 +18,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.resolve()))
 
 from src.data import load_dataset
-from src.executor import build_prompt
+from src.executor import build_prompt, _self_consistency_vote
 from src.evaluator import evaluate_program
 from src.model import QwenInference, extract_answer
 from src.strategy import Strategy, CoTFormat
@@ -81,6 +81,30 @@ def parse_args() -> argparse.Namespace:
         default=0.90,
         help="Fraction of GPU memory to use for SGLang.",
     )
+    parser.add_argument(
+        "--tp-size",
+        type=int,
+        default=1,
+        help="Tensor-parallel size (shard one model across N GPUs).",
+    )
+    parser.add_argument(
+        "--dp-size",
+        type=int,
+        default=1,
+        help="Data-parallel size (N model replicas across GPUs for throughput).",
+    )
+    parser.add_argument(
+        "--self-consistency-k",
+        type=int,
+        default=1,
+        help="Sample K programs per question and majority-vote on the executed value (1 = single greedy pass).",
+    )
+    parser.add_argument(
+        "--self-consistency-temp",
+        type=float,
+        default=0.6,
+        help="Sampling temperature used when --self-consistency-k > 1.",
+    )
     return parser.parse_args()
 
 
@@ -115,10 +139,14 @@ def main() -> None:
     model = QwenInference(
         model_name_or_path=args.model,
         max_new_tokens=args.max_new_tokens,
-        temperature=0.0,  # Greedy for determinism
+        temperature=0.0,  # Greedy base; self-consistency overrides per-call
         use_4bit=not args.no_4bit,
         gpu_memory_utilization=args.gpu_memory_utilization,
         max_model_len=args.max_model_len,
+        tp_size=args.tp_size,
+        dp_size=args.dp_size,
+        self_consistency_k=args.self_consistency_k,
+        self_consistency_temp=args.self_consistency_temp,
     )
     model.load()
 
@@ -140,13 +168,26 @@ def main() -> None:
     # TODO: Set appropriate max generation bounds
     model.max_new_tokens = 4096 if strategy.cot_format != CoTFormat.NONE else 256
 
-    logger.info("Running batch inference on test set...")
-    with tqdm(total=len(prompts), desc="Running inference") as pbar:
-        raw_outputs = model.generate_batch(
-            prompts,
-            cot_format=(strategy.cot_format != CoTFormat.NONE)
+    cot = (strategy.cot_format != CoTFormat.NONE)
+    sc_k = int(args.self_consistency_k or 1)
+
+    if sc_k > 1:
+        sc_temp = float(args.self_consistency_temp)
+        logger.info(
+            "Running self-consistency inference: k=%d samples/question, temp=%.2f.", sc_k, sc_temp
         )
-        pbar.update(len(raw_outputs))
+        tables = [row["table"] for row in test_dataset]
+        expanded_prompts = []
+        for p in prompts:
+            expanded_prompts.extend([p] * sc_k)
+        gen = model.generate_batch(expanded_prompts, cot_format=cot, temperature_override=sc_temp)
+        raw_outputs = [
+            _self_consistency_vote(gen[i * sc_k:(i + 1) * sc_k], tables[i])
+            for i in range(len(prompts))
+        ]
+    else:
+        logger.info("Running batch inference on test set (greedy)...")
+        raw_outputs = model.generate_batch(prompts, cot_format=cot)
 
     logger.info("Parsing programs and generating submission file at %s...", output_file)
     output_file.parent.mkdir(parents=True, exist_ok=True)
