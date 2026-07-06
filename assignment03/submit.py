@@ -46,6 +46,14 @@ def parse_args() -> argparse.Namespace:
         help="Path where the output submission.csv will be saved.",
     )
     parser.add_argument(
+        "--split",
+        type=str,
+        choices=["test", "dev"],
+        default="test",
+        help="Which split to run inference on. 'dev' (labeled) is for local scoring "
+             "with phase3_dev_eval.py; 'test' produces a Kaggle submission.",
+    )
+    parser.add_argument(
         "--limit",
         type=int,
         default=None,
@@ -124,12 +132,14 @@ def main() -> None:
         logger.error("Failed to load strategy: %s", e)
         sys.exit(1)
 
-    logger.info("Loading test dataset splits...")
+    logger.info("Loading dataset splits...")
     try:
         ds = load_dataset()
-        test_dataset = ds["test"]
+        split_key = "validation" if args.split == "dev" else "test"
+        test_dataset = ds[split_key]
+        logger.info("Running on '%s' split (%d examples).", args.split, len(test_dataset))
         if args.limit is not None:
-            logger.info("Limiting test dataset to first %d examples.", args.limit)
+            logger.info("Limiting dataset to first %d examples.", args.limit)
             test_dataset = test_dataset.select(range(min(args.limit, len(test_dataset))))
     except Exception as e:
         logger.error("Failed to load dataset: %s", e)

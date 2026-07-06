@@ -1,0 +1,39 @@
+{
+  "id": "6e5d0325-0ce2-4e70-ac3a-82fe6f0de905",
+  "prompt_template": "Bạn là chuyên gia phân tích tài chính. Hãy giải bài toán bằng cách viết một chương trình DSL phẳng.\n\nQUY TẮC QUAN TRỌNG NHẤT (phải tuân thủ tuyệt đối):\n- CHỈ có 4 hàm bảng tồn tại: table_max, table_min, table_sum, table_average. TUYỆT ĐỐI KHÔNG bao giờ dùng table_value, table_get, table_VIC hay bất kỳ tên hàm bảng nào khác — chúng KHÔNG tồn tại và sẽ gây lỗi (kết quả 0).\n- Nếu cần MỘT giá trị cụ thể từ bảng (ví dụ doanh thu năm 2020), hãy TỰ ĐỌC con số đó và viết TRỰC TIẾP số đó vào hàm — KHÔNG dùng hàm bảng.\n- Chỉ dùng table_max/min/sum/average khi câu hỏi hỏi giá trị lớn nhất/nhỏ nhất/tổng/trung bình trên cả một hàng.\n- KHÔNG lồng hàm vào nhau. Kết quả phần trăm phải ở dạng thập phân (0.085 chứ không phải 8.5).",
+  "cot_format": "none",
+  "few_shot_examples": [
+    {
+      "passage": "so sánh hiệu suất hoạt động năm năm 2013 biểu đồ sau đây cung cấp chỉ số về tổng lợi nhuận cổ đông lũy kế của tập đoàn so với chỉ số nhóm ngang hàng (được mô tả ở trên), chỉ số dow jones và chỉ số s&p 500. biểu đồ giả định rằng giá trị khoản đầu tư vào cổ phiếu phổ thông của union pacific corporation và mỗi chỉ số là 100 đô la vào ngày 31 tháng 12 năm 2002 và tất cả cổ tức đã được tái đầu tư. so sánh lợi nhuận lũy kế năm năm 2002 2003 2004 2005 2006 2007 upc s&p 500 nhóm ngang hàng dj trans mua lại chứng khoán vốn 2013 trong năm 2007, chúng tôi đã mua lại 13.266.070 cổ phiếu phổ thông của mình với giá trung bình là 115,66 đô la. trong chín tháng đầu năm 2007, chúng tôi đã mua lại 10.639.916 cổ phiếu phổ thông của mình với giá trung bình mỗi cổ phiếu là 112,68 đô la. bảng sau đây trình bày việc mua lại cổ phiếu phổ thông trong mỗi tháng của quý iv năm 2007: kỳ số lượng cổ phiếu đã mua giá ...",
+      "question": "Tỷ lệ phần trăm của tổng số cổ phiếu mua vào được mua trong tháng Mười là bao nhiêu?",
+      "answer": "divide(99782, 2626154)",
+      "reasoning": "Cần tỷ lệ giữa hai giá trị đọc trực tiếp từ bảng: 99782 và 2626154. Viết literal, KHÔNG dùng hàm bảng."
+    },
+    {
+      "passage": "năm 2019, doanh thu và lãi ròng đạt 8.493 tỷ và 161 tỷ đồng, lần lượt đạt mức tăng trưởng ấn tượng 43% và 45% so với cùng kỳ nhờ: 1) mảng phân phối điện thoại di động chiếm 46% tổng doanh thu, tăng trưởng 65%, đạt mức doanh thu 3.896 tỷ đồng; 2) mảng máy tính xách tay & máy tính bảng chiếm 35% tổng doanh thu, tăng trưởng 24%, đạt doanh thu 2.975 tỷ; 3) hai mảng thiết bị văn phòng và hàng tiêu dùng chiếm phần 19% doanh thu còn lại, lần lượt tăng trưởng 23% và 231%; 4) biên lợi nhuận năm 2019 có phần cải thiện nhẹ từ mức 6,2% năm 2018 lên mức 6,5% năm 2019. mảng phân phối laptop của dgw đang chiếm 58,6% thị phần laptop tính theo giá trị và 44,3% về thị phần số lượng trong năm 2019, con số này ghi nhận mức tăng trưởng tích cực hơn năm 2018 về gia tăng thị phần. năm 2019, các dòng sản phẩm tạo sự chú ý của dgw là lenovo ideapad s540, dell xps 13 7390 2in1, hp elitebook x360 1040 g6. mảng điệ ...",
+      "question": "Lãi ròng cao nhất trong giai đoạn 2015-2020 là bao nhiêu (tỷ đồng)?",
+      "answer": "table_max(Lãi ròng, none)",
+      "reasoning": "Câu hỏi hỏi giá trị LỚN NHẤT trên hàng \"Lãi ròng\" — đây là trường hợp đúng để dùng table_max, chép tên hàng nguyên văn."
+    },
+    {
+      "passage": "biểu đồ hiệu suất biểu đồ dưới đây so sánh tổng lợi nhuận tích lũy của cổ đông trên cổ phiếu phổ thông của pmi với tổng lợi nhuận tích lũy trong cùng kỳ của nhóm công ty cùng ngành của pmi và chỉ số s&p 500. biểu đồ giả định khoản đầu tư 100 đô la vào ngày 31 tháng 12 năm 2012, vào cổ phiếu phổ thông của pmi (theo giá niêm yết trên sở giao dịch chứng khoán new york) và mỗi chỉ số tại thời điểm đóng cửa thị trường và tái đầu tư cổ tức hàng quý. ngày pmi nhóm công ty cùng ngành của pmi (1) chỉ số s&p 500.\n\nBảng:\nngày | pmi | nhóm công ty cùng ngành của pmi (1) | chỉ số s&p 500\nngày 31 tháng 12 năm 2012 | $ 100.00 | $ 100.00 | $ 100.00\nngày 31 tháng 12 năm 2013 | $ 108.50 | $ 122.80 | $ 132.40\nngày 31 tháng 12 năm 2014 | $ 106.20 | $ 132.50 | $ 150.50\nngày 31 tháng 12 năm 2015 | $ 120.40 | $ 143.50 | $ 152.60\nngày 31 tháng 12 năm 2016 | $ 130.80 | $ 145.60 | $ 170.80\nngày 31 tháng 12 năm 20 ...",
+      "question": "Tỷ lệ tăng trưởng giá cổ phiếu của PMI từ năm 2012 đến 2013 là bao nhiêu?",
+      "answer": "subtract(108.50, 100), divide(#0, 100)",
+      "reasoning": "Đọc trực tiếp 108.50 và 100; tính tăng trưởng dạng thập phân, không nhân 100 ở cuối."
+    }
+  ],
+  "retrieval_config": {
+    "enabled": false,
+    "top_k": 3,
+    "similarity_threshold": 0.75
+  },
+  "metadata": {
+    "dev_accuracy": null,
+    "train_accuracy": null,
+    "parent_id": null,
+    "iteration": 0,
+    "token_cost_claude": 0,
+    "token_cost_qwen": 0,
+    "extra": {}
+  }
+}

@@ -506,3 +506,126 @@ broad or high-magnitude replacements remain risky.
 | - | Run 007 | Not submitted | Validated but held back; medium-risk private-LB gamble. |
 | 6 | Run 001 | 0.56477 | Best single-strategy baseline so far. |
 | 7 | Run 002 | 0.47975 | Fewer zero predictions, worse public score as standalone. |
+
+---
+
+## Ensemble Error Analysis & Improvement Strategy (2026-07-06)
+
+Analysis of `A3_MelanieAndStephen_.../kaggle/submission_ensemble.csv` and its three
+member files (`final_submission.csv` = run009, `submission_8b_sc5.csv`,
+`submission_coder7b.csv`). Goal: locate likely-wrong test predictions and lay out
+the levers for improving the score.
+
+### Key constraint: the test set has no local gold labels
+
+`assignment03/data/test.json` (494 rows) contains only `qa.question` — no `exe_ans`.
+So test rows cannot be scored directly. "Wrong answers" were surfaced via two proxies:
+
+1. **Ensemble disagreement** across the 3 member models (low agreement => low confidence).
+2. **Structural red flags** (scale, sign, zeros, extreme outliers).
+
+The correct scaling convention was confirmed against the **labeled dev set**
+(`data/dev.json`, 584 rows with gold).
+
+Reproduction scripts (scratchpad): `analyze_ensemble.py`, `scale_errors.py`.
+Full ranked suspicious-row table written to `kaggle/suspicious_rows.json`.
+
+### Confidence distribution on the test submission
+
+| Members agreeing with final value | Rows | % |
+|---|---:|---:|
+| 3/3 (unanimous) | 194 | 39% |
+| 2/3 | 205 | 42% |
+| 1/3 (one model carried it) | 95 | 19% |
+
+**61% of test rows have at least one dissenting model** — this is where errors concentrate.
+
+### Dominant error category: scale (power-of-10) and sign mistakes
+
+**64 / 494 rows (13%)** are cases where the models agree on the *digits* but disagree
+on *magnitude or sign*:
+
+- **52 pure scale errors** — 43 are `×100` (percent-vs-ratio confusion), e.g.
+  `0.198 vs 19.86`, `0.161 vs 16.12`, `0.653 vs 65.27`; plus a few `×1000` and unit-driven `×1e9`.
+- **12 pure sign flips** — e.g. `-530 vs 530`, `2.5 vs -2.5`.
+
+Direction of the fix, confirmed on dev: for ratio/percent-cue questions the gold answer
+is a **decimal ratio** (median `|ans|` = 0.375; 71% ≤ 1.0), NOT a percent. So `×100`
+disagreements should almost always resolve toward the **smaller/ratio** value. The
+`RATIO_Q_BUT_BIG` flag caught **68 rows** where the ensemble picked a value > 1.5 on a
+ratio-worded question — prime candidates for being 100× too large.
+
+### Other error clusters
+
+| Flag | Count | Interpretation |
+|---|---:|---|
+| `SPLIT_2` (2 vs 1) | 210 | One model dissents; medium confidence. |
+| `FULL_DISAGREE` (all 3 differ) | 90 | Genuinely hard; often multi-step or table-lookup. |
+| `RATIO_Q_BUT_BIG` | 68 | Ratio question, answer > 1.5 → likely 100× too large. |
+| `EXTREME_HIGH` (≥1e6) | 10 | Unit confusion ("triệu"/"tỷ" = million/billion). |
+| `ZERO` | 4 | Extraction failure. |
+
+Disagreement (proxy error) rate by slice: US-filings 66.5% vs MASVN 56.5%;
+plain-numeric Q 63.6% vs ratio/percent Q 58.7%.
+
+### Interpretation
+
+The models mostly *can* read the tables; they fail on **conventions** (scale, sign,
+units), not comprehension. That is the cheapest class of error to fix — via
+post-processing, prompting, and light finetuning.
+
+---
+
+## Improvement Strategy Menu (ranked by ROI for this dataset)
+
+### Tier 1 — cheap, high impact, no training
+
+1. **Post-processing (scale/sign fixer) — highest ROI now.** For ratio/percent-cue
+   questions where the ensemble value > 1.5, divide by 100 (or prefer the ÷100 member
+   value). Add "triệu"/"tỷ" unit normalization for the 10 extreme-high outliers, and
+   canonicalize sign via `subtract(new, old)` for change questions. Targets ~64–68
+   flagged rows. Validate with one Kaggle submission. NOTE: broad numeric post-processing
+   previously hurt (Run 005) — keep changes *targeted and category-gated*, not global.
+2. **Prompt engineering — fixes the root cause.** State the rules explicitly in the
+   system prompt: "Answer as a decimal ratio (0.085), never a percent (8.5)"; include the
+   DSL spec (reuse `data_description.md` §2 verbatim) and unit rules. Same fix as (1) but
+   upstream, so it also reaches rows post-processing can't.
+3. **Validation harness — prerequisite for everything below.** Currently there is no
+   local score, only Kaggle's 0.658. Build dev.json eval: predicted programs → `src/evaluator.py`
+   → exact-match (within tolerance) vs `exe_ans`, sliced by error category. Every strategy
+   below needs this local signal to tune against.
+
+### Tier 2 — strong gains, moderate effort, no training
+
+4. **Few-shot examples.** Curate 4–8 exemplars from `finqa_qualified_reasonings.json` that
+   demonstrate each failure mode (ratio→decimal, table_max, multi-step chain, sign case).
+5. **Retrieval (RAG for few-shot selection).** Embed train.json questions; at inference,
+   retrieve the k most similar gold (question→program) pairs as dynamic few-shot. High value
+   because the data is stylistically clustered (MASVN vs US filings, recurring templates).
+6. **Self-consistency (already have `8b_sc5`) — make it scale-aware.** Current SC votes on
+   raw values, so `0.028` and `2.88` split the vote. Normalize magnitude before voting, or
+   vote on the *program* rather than the number. Directly attacks the 52 scale-split rows.
+7. **Ensembling (already have) — improve the tie-break.** Replace fixed run009-priority
+   tie-break with per-category weighting (let the member that is best on table-lookups win
+   those rows). Requires the validation harness to know per-category strengths.
+
+### Tier 3 — biggest ceiling, highest cost, training
+
+8. **Fine-tuning (SFT / LoRA).** Train on train.json's 2,986 gold programs; output the DSL
+   *program* (auto-verifiable via `evaluator.py`), not the raw number. Over-sample
+   scale/table/sign cases. LoRA/QLoRA on the existing 7-8B models via Modal (`run_modal.py`).
+   Instruction JSONL: `{system: DSL spec + scaling rule, user: pre/post text + table +
+   question, assistant: program}`. Full fine-tune is overkill.
+9. **Post-training (rejection sampling → RL).** `evaluator.py` gives a *verifiable reward*,
+   so this dataset is ideal for reward-based post-training:
+   - *Rejection sampling / STaR (do first, cheaper):* sample N programs per train question,
+     keep only those that execute to `exe_ans`, SFT on the survivors.
+   - *RLVR / GRPO (fuller):* reward = 1 if executed answer matches gold; optimizes the metric directly.
+
+### Suggested sequence
+
+`Validation harness → Prompt + scale-aware SC (measure) → Post-processing fixer (submit)
+→ Retrieval few-shot → LoRA SFT → rejection-sampling post-train`.
+
+Single highest-leverage item: the **validation harness** — it is a dependency for judging
+every other lever, and there is currently no local ground-truth signal at all.

@@ -6,10 +6,15 @@ This report documents the Phase 3 improvements made by Melanie to the EvoAgent
 Kaggle pipeline, written for the team (Stephen) with enough technical detail to
 reproduce and extend the work. Starting from the team's previous best public
 score of 0.65789 (the Run009-lite hybrid built on a 4-billion-parameter model),
-the work in this session raised the public leaderboard score to 0.69433, an
-improvement of about 3.6 points. The gains came from three changes applied one at
-a time: a larger base model, self-consistency inference, and a majority-vote
-ensemble across diverse models.
+the work in this session raised the public leaderboard score to **0.70242**, an
+improvement of about 4.5 points, crossing the 0.70 mark. The gains came from
+changes applied one at a time and validated before acceptance: a larger base
+model, self-consistency inference, a majority-vote ensemble across diverse models,
+and two rounds of member-confirmed numeric post-processing (scale then sign). A
+local dev-validation harness was built so candidate changes could be measured
+before spending Kaggle submissions, and several tempting changes were rejected on
+that evidence (a blind post-processing pass and three from-scratch ensemble
+members), which is documented as part of the method.
 
 All experiments ran on a compute node with four NVIDIA H100 80GB GPUs accessed
 over SSH, using SGLang for inference. Every model used is an open-weight model of
@@ -116,6 +121,9 @@ to the previous single-GPU, single-sample behaviour.
 | `src/../arc_proofs.py` | Added the same four flags and forwards them to `main.py`. |
 | `submit.py` | Added the same flags; applies self-consistency voting when generating test predictions. |
 | `phase3_ensemble_vote.py` | New script: per-row majority-vote ensemble of N submission CSVs with a priority tiebreaker (CPU-only). |
+| `phase3_scale_fix.py` | New script: targeted, member-confirmed percent→ratio post-processor (CPU-only); produced the 0.69838 best submission. |
+| `phase3_dev_eval.py` | New script: local validation harness — scores predictions against the 584 labeled dev rows with the project metric, sliced by category (CPU-only). |
+| `submit.py` | Added `--split {test,dev}` so predictions can be generated on the labeled dev split for local scoring. |
 
 ## Kaggle Experiments
 
@@ -124,7 +132,10 @@ to the previous single-GPU, single-sample behaviour.
 | 8B SC k=5 | Qwen3-8B + self-consistency (k=5) | 0.64979 | Not final |
 | 8B SC k=16 | Qwen3-8B + self-consistency (k=16) | 0.65587 | Not final |
 | Coder-7B | Qwen2.5-Coder-7B, standalone | 0.48178 | Diversity source only |
-| Ensemble | 3-way majority vote (8B k16 + hybrid + Coder-7B) | 0.69433 | Primary final |
+| Ensemble | 3-way majority vote (8B k16 + hybrid + Coder-7B) | 0.69433 | Superseded by v2 |
+| Ensemble v2 | 3-way vote + targeted member-confirmed scale fix (8 rows) | 0.69838 | Superseded by v4 |
+| Ensemble v3 | v2 + 36 wording-based (blind) scale fixes | 0.68218 | Rejected (regressed) |
+| Ensemble v4 | v2 + 2 member-confirmed sign flips | **0.70242** | **Primary final (>0.70)** |
 
 For reference, the previous team best was Run009-lite at 0.65789.
 
@@ -142,6 +153,46 @@ the Qwen3 models and the majority vote exploits that diversity. Two corollaries
 follow for future work: adding more independent models to an odd-sized vote is
 likely the highest-value next step, and diversity of a candidate model matters
 more than its standalone accuracy.
+
+## Post-Processing, Validation, and Negative Results (final day)
+
+Three further levers were tried and measured. Two are documented here as negative
+results because they are as informative as the positive one.
+
+**Targeted scale fix (positive, +0.44 pt).** Error analysis of the ensemble showed
+the dominant residual error is a percent-vs-ratio scale mistake: the gold answer
+convention is a decimal ratio (dev median |answer| = 0.375; 71% within 0-1), and
+the metric uses a tight absolute tolerance, so a 100x scale error is always wrong.
+A conservative post-processor (`phase3_scale_fix.py`) divided a value by 100 only
+when the question was a ratio/percent question, the value exceeded 1.5, and a
+member model had independently produced the divided form. This changed 8 rows and
+lifted Kaggle from 0.69433 to **0.69838** (v2). Applying the same member-confirmed
+gate to the sign category (two rows where two of three models agreed on the
+opposite sign of a difference question) lifted the score again to **0.70242** (v4),
+crossing 0.70. The member-confirmed evidence gate is what separated these gains
+from the blind v3 regression.
+
+**Blind scale fix (negative, -1.6 pt).** Extending the same divide-by-100 to 36
+more rows on question wording alone (no member confirmation) dropped the score to
+0.68218 (v3). Lesson: the member-confirmation gate was the real signal; when all
+models agree on the large value, the large value is usually correct. Broad
+post-processing overfits and regresses, consistent with the earlier Run005 result.
+
+**Fresh ensemble members (negative, capped ~25% dev).** To expand the vote, three
+new members were generated on hand-crafted strategies and scored on the labeled dev
+set with the new validation harness: Qwen2.5-Coder-7B (28.8%), Qwen3-8B with
+self-consistency k=10 (23.3%), and Qwen3-8B with a table-aware strategy (24.8%).
+Diagnosis showed the models invent non-existent DSL operations such as
+`table_value`; a corrected strategy removed those (invalid ops fell to 1/584 and
+table-lookup accuracy rose from 59% to 73%), yet overall accuracy stayed flat
+because the true bottleneck is arithmetic reasoning (490/584 rows at 15.5%), which
+is not addressable by prompting. The evolved-strategy members reached ~0.65; a
+from-scratch member on a seed-level strategy caps near 0.25 and would only drag the
+vote. No fresh member beat the evolved-strategy ensemble, so the ensemble members
+were left unchanged and the only accepted gains were the member-confirmed
+post-processing fixes (v2, then v4). This is why the local validation harness
+matters: it let these three candidates be rejected on dev without spending Kaggle
+submissions.
 
 ## Reproducibility
 
@@ -165,7 +216,7 @@ python3 submit.py --strategy-path runs/exp_qwen3_8b_sc5/iter_best_strategy.json 
   --model Qwen/Qwen2.5-Coder-7B-Instruct --dp-size 4 --self-consistency-k 8
 ```
 
-The final ensemble was produced locally by majority vote:
+The base ensemble was produced locally by majority vote:
 
 ```bash
 python3 phase3_ensemble_vote.py \
@@ -174,23 +225,52 @@ python3 phase3_ensemble_vote.py \
   --output submission_ensemble.csv
 ```
 
+The final-day post-processing and validation steps (all CPU-only, deterministic):
+
+```bash
+# Local dev validation harness — sanity self-test then score any prediction file
+python3 phase3_dev_eval.py --selftest                       # gold programs -> 100%
+python3 phase3_dev_eval.py --pred <preds>.json --mode program
+
+# Member-confirmed percent->ratio scale fix over the ensemble -> v2 (0.69838)
+python3 phase3_scale_fix.py --apply                          # writes submission_ensemble_v2.csv
+
+# Member-confirmed sign flips over v2 -> v4 (0.70242); v3 (blind, regressed) omitted
+# (2 rows where >=2 of 3 members agree on the opposite sign of a difference question)
+```
+
+Candidate ensemble members for future expansion are generated on Modal with:
+
+```bash
+modal run --detach run_modal.py::predict \
+  --model <hf-id> --sc-k <k> --tag <name> \
+  --strategy-path strategies/<strategy>.json     # runs dev + test, downloads both
+```
+
 ## Next Steps
 
-The remaining gap to a much higher score is large; the base solver caps in the
-high-0.60s on this test set. The recommended next experiments, in order of
-expected value:
+The final result is **v4 (0.70242)**. Post-processing is now exhausted: every
+member-confirmed correction (8 scale + 2 sign) has been applied, and blind edits
+were shown to regress (v3). Fresh ensemble members on hand-crafted strategies cap
+at ~0.25 dev because of the arithmetic-reasoning bottleneck, so they cannot help
+the vote. The only remaining levers with real headroom therefore require training
+or genuine new diversity:
 
-1. Expand the ensemble to a 5-way odd vote by adding two more non-gated diverse
-   models (for example `Qwen2.5-7B-Instruct` and `Mistral-7B-Instruct-v0.3`); an
-   odd voter count removes tie-break ambiguity.
-2. Confidence-weighted voting: weight each model on a row by its self-consistency
-   agreement count instead of an equal vote.
-3. Larger structural changes if time allows: LoRA fine-tuning on the train
-   programs, or context/table-retrieval compression to fix wrong-row extraction.
+1. **LoRA fine-tuning on the train programs.** Teach the exact DSL dialect and the
+   decimal-ratio convention directly; the executor gives a verifiable reward and the
+   validation harness measures it on dev. This is the single lever most likely to
+   move arithmetic accuracy, but it is a multi-day effort on a larger GPU.
+2. **Rejection-sampling / STaR bootstrap.** Sample many programs per train question,
+   keep only those that execute to the gold answer, and fine-tune on the survivors —
+   a cheaper precursor to full fine-tuning that reuses existing inference tooling.
+3. **Re-run the evolution loop for a new model** to obtain a properly tuned strategy
+   (the evolved strategies reached ~0.65; the seed strategy caps near 0.25).
+4. **Within-team ensembling.** Voting v4 against the teammate's independently-built
+   pipeline is allowed (same team) and is the fastest source of new diversity.
 
 Because grading is rank-based and the public score is only a proxy for the private
-leaderboard, the ensemble (0.69433) should be kept as the primary final candidate
-alongside the stable 4B hybrid.
+leaderboard, **v4 (0.70242) is the primary final candidate**, with v2 (0.69838) and
+the stable 4B hybrid kept as private-leaderboard hedges.
 
 ## Integrity Declaration Summary
 

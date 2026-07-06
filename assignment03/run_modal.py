@@ -375,3 +375,160 @@ def submit(strategy_path: str, output_file: str = "submission.csv", limit: int =
     # Cleanup temp directory
     shutil.rmtree(temp_dir, ignore_errors=True)
 
+
+# ======================================================================
+# Option 2 — expand the ensemble: run ANY diverse model on dev + test.
+# ======================================================================
+
+@app.function(
+    image=image,
+    gpu="A10G",
+    cpu=4,
+    memory=16384,
+    timeout=7200,
+    secrets=[modal.Secret.from_name("huggingface")],
+    volumes={"/runs": volume},
+)
+def run_predict(model: str, strategy_path: str, split: str, output_file: str, sc_k: int = 1):
+    """Run one model on one split (dev|test) -> submission CSV + *_details.json."""
+    import os
+    import subprocess
+    os.chdir("/evoagent")
+    cmd = [
+        "python", "submit.py",
+        "--strategy-path", strategy_path,
+        "--split", split,
+        "--output-file", output_file,
+        "--model", model,
+        "--gpu-memory-utilization", "0.9",
+        "--self-consistency-k", str(sc_k),
+    ]
+    print("RUN:", " ".join(cmd))
+    subprocess.run(cmd, check=True)
+    volume.commit()
+
+
+@app.local_entrypoint()
+def predict(model: str, strategy_path: str = "strategies/seed_strategy.json",
+            sc_k: int = 1, tag: str = None):
+    """
+    Generate a candidate ensemble member: run `model` on BOTH dev and test.
+
+    Downloads to ./predict_out/<tag>_{dev,test}.csv (+ *_details.json).
+    Then locally:
+      score dev:  python3 phase3_dev_eval.py --pred predict_out/<tag>_dev_details.json --mode program
+      add to vote: include predict_out/<tag>_test.csv in phase3_ensemble_vote.py --inputs
+
+    Example:
+      modal run run_modal.py::predict --model mistralai/Mistral-7B-Instruct-v0.3 --sc-k 5
+    """
+    import subprocess
+    from pathlib import Path
+
+    if tag is None:
+        tag = model.rstrip("/").split("/")[-1].lower()
+    out_dir = Path("predict_out")
+    out_dir.mkdir(exist_ok=True)
+
+    def _pull(volume_rel: str, local: Path):
+        tmp = Path("temp_download")
+        tmp.mkdir(exist_ok=True)
+        try:
+            subprocess.run(["modal", "volume", "get", "evoagent-runs", volume_rel, str(tmp)], check=True)
+            got = tmp / Path(volume_rel).name
+            if got.exists():
+                if local.exists():
+                    local.unlink()
+                got.replace(local)
+                print(f"  downloaded {local}")
+            else:
+                print(f"  WARNING: {got} not found")
+        except Exception as e:
+            print(f"  ERROR downloading {volume_rel}: {e}")
+        finally:
+            import shutil
+            shutil.rmtree(tmp, ignore_errors=True)
+
+    for split in ("dev", "test"):
+        remote_csv = f"/runs/predict/{tag}_{split}.csv"
+        rel = f"predict/{tag}_{split}.csv"
+        rel_details = f"predict/{tag}_{split}_details.json"
+        print(f"\n=== {tag}: running {split} split on Modal (sc_k={sc_k}) ===")
+        run_predict.remote(model, strategy_path, split, remote_csv, sc_k)
+        _pull(rel, out_dir / f"{tag}_{split}.csv")
+        _pull(rel_details, out_dir / f"{tag}_{split}_details.json")
+
+    print(f"\nDone. Next:")
+    print(f"  python3 phase3_dev_eval.py --pred predict_out/{tag}_dev_details.json --mode program")
+    print(f"  # then add predict_out/{tag}_test.csv to phase3_ensemble_vote.py --inputs")
+
+
+# ======================================================================
+# LoRA fine-tuning — QLoRA SFT on train.json gold programs, then merge.
+# ======================================================================
+
+train_image = (
+    modal.Image.debian_slim(python_version="3.11")
+    .pip_install(
+        # Qwen3 architecture requires transformers >= 4.51.
+        "torch==2.5.1",
+        "transformers==4.51.3",
+        "peft==0.15.2",
+        "bitsandbytes==0.45.3",
+        "accelerate==1.6.0",
+        "datasets==3.5.0",
+        "sentencepiece",
+        "protobuf",
+    )
+    .add_local_dir(
+        ".",
+        remote_path="/evoagent",
+        ignore=[".venv", "runs", ".git", "__pycache__", ".pytest_cache", "*.pdf", "graders"],
+    )
+)
+
+
+@app.function(
+    image=train_image,
+    gpu="A100-80GB",
+    cpu=8,
+    memory=98304,
+    timeout=14400,
+    secrets=[modal.Secret.from_name("huggingface")],
+    volumes={"/runs": volume},
+)
+def train_lora_fn(base_model: str = "Qwen/Qwen2.5-7B-Instruct", epochs: float = 2.0, tag: str = "qwen25_7b"):
+    """QLoRA SFT then merge -> full model dir on the volume for SGLang serving."""
+    import os
+    import subprocess
+    os.chdir("/evoagent")
+    os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
+    adapter_dir = f"/runs/lora_{tag}"
+    merged_dir = f"/runs/lora_merged_{tag}"
+    subprocess.run([
+        "python", "train_lora.py",
+        "--model", base_model,
+        "--train", "data_sft/train_sft.jsonl",
+        "--eval", "data_sft/eval_sft.jsonl",
+        "--output-dir", adapter_dir,
+        "--epochs", str(epochs),
+    ], check=True)
+    subprocess.run([
+        "python", "merge_lora.py",
+        "--base", base_model,
+        "--adapter", f"{adapter_dir}/adapter_final",
+        "--out", merged_dir,
+    ], check=True)
+    volume.commit()
+    print(f"DONE. Merged fine-tuned model at {merged_dir}")
+
+
+@app.local_entrypoint()
+def finetune(base_model: str = "Qwen/Qwen2.5-7B-Instruct", epochs: float = 2.0, tag: str = "qwen25_7b"):
+    print(f"Launching QLoRA fine-tune of {base_model} ({epochs} epochs) on Modal A100...")
+    train_lora_fn.remote(base_model, epochs, tag)
+    print("\nTraining + merge complete. Next — run inference with the fine-tuned model:")
+    print(f"  modal run --detach run_modal.py::predict "
+          f"--model /runs/lora_merged_{tag} --sc-k 1 --tag ft-{tag} "
+          f"--strategy-path strategies/ft_strategy.json")
+

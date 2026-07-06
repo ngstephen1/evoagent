@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EvoAgent — Results &amp; Improvement Plan</title>
+<style>
+  :root{
+    --bg:#0f1117; --panel:#171a23; --panel2:#1e222e; --ink:#e6e8ee; --muted:#9aa3b2;
+    --line:#2a2f3d; --accent:#6366f1; --accent2:#22d3ee; --good:#10b981; --warn:#f59e0b;
+    --bad:#ef4444; --chip:#262b3a;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+  .wrap{max-width:980px;margin:0 auto;padding:40px 24px 90px}
+  h1{font-size:34px;line-height:1.2;margin:0 0 6px;letter-spacing:-.5px}
+  h2{font-size:24px;margin:46px 0 14px;padding-bottom:8px;border-bottom:2px solid var(--line)}
+  h3{font-size:18px;margin:26px 0 8px;color:#c7cbf5}
+  p{margin:10px 0}
+  a{color:var(--accent2)}
+  code{background:#0b0d13;border:1px solid var(--line);border-radius:5px;padding:1px 6px;
+    font:13.5px/1.5 "SF Mono",Menlo,Consolas,monospace;color:#a5f3fc}
+  pre{background:#0b0d13;border:1px solid var(--line);border-radius:10px;padding:14px 16px;
+    overflow:auto;font:13px/1.6 "SF Mono",Menlo,Consolas,monospace;color:#cbd5e1}
+  .lede{color:var(--muted);font-size:18px;margin-bottom:22px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 18px}
+  .tag{display:inline-block;border-radius:6px;padding:1px 9px;font-size:12px;font-weight:600}
+  .t-good{background:rgba(16,185,129,.15);color:#6ee7b7;border:1px solid rgba(16,185,129,.4)}
+  .t-warn{background:rgba(245,158,11,.15);color:#fcd34d;border:1px solid rgba(245,158,11,.4)}
+  .t-bad{background:rgba(239,68,68,.15);color:#fca5a5;border:1px solid rgba(239,68,68,.4)}
+  .t-acc{background:rgba(99,102,241,.18);color:#c7d2fe;border:1px solid rgba(99,102,241,.4)}
+  table{width:100%;border-collapse:collapse;margin:14px 0;font-size:14.5px}
+  th,td{text-align:left;padding:9px 11px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{color:var(--muted);font-weight:600;font-size:13px;text-transform:uppercase;letter-spacing:.4px}
+  tr:hover td{background:#1b1f2b}
+  .num{text-align:right;font-variant-numeric:tabular-nums}
+  .callout{background:linear-gradient(180deg,#1b1f2b,#171a23);border:1px solid var(--line);
+    border-left:4px solid var(--accent2);border-radius:10px;padding:14px 18px;margin:18px 0}
+  .callout.warn{border-left-color:var(--warn)}
+  .callout.good{border-left-color:var(--good)}
+  .kpi{display:flex;gap:14px;flex-wrap:wrap;margin:14px 0}
+  .kpi .box{flex:1;min-width:150px;background:var(--panel);border:1px solid var(--line);
+    border-radius:12px;padding:14px 16px;text-align:center}
+  .kpi .big{font-size:30px;font-weight:700;color:#fff}
+  .kpi .lab{color:var(--muted);font-size:13px;margin-top:2px}
+  .muted{color:var(--muted)}
+  ol li,ul li{margin:6px 0}
+  .foot{color:var(--muted);font-size:13px;margin-top:40px;text-align:center}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>EvoAgent — Results &amp; Improvement Plan</h1>
+  <p class="lede">A self-improving LLM that reads Vietnamese financial reports and writes little math programs to answer
+  them. This page keeps only the current results and the plan for pushing the score higher.</p>
+
+  <div class="kpi">
+    <div class="box"><div class="big">0.70242</div><div class="lab">Best Kaggle public (v4) 🏆</div></div>
+    <div class="box"><div class="big">+4.0pt</div><div class="lab">Gain over old best (0.658)</div></div>
+    <div class="box"><div class="big">100%</div><div class="lab">Dev-eval harness self-test</div></div>
+    <div class="box"><div class="big">Jul 9</div><div class="lab">Deadline (Asia/Saigon), 2026</div></div>
+  </div>
+
+  <!-- ============================================================ -->
+  <h2>Results so far</h2>
+
+  <table>
+    <tr><th>Submission</th><th class="num">Kaggle public</th><th>Status</th></tr>
+    <tr><td><code>submission_ensemble.csv</code></td><td class="num">0.69433</td><td>Original 3-way majority vote (run009 + 8b_sc5 + coder7b).</td></tr>
+    <tr><td><code>submission_ensemble_v2.csv</code></td><td class="num">0.69838</td><td><span class="tag t-good">BEST — frozen final</span> +8 member-confirmed percent→ratio fixes.</td></tr>
+    <tr><td><code>submission_ensemble_v3.csv</code></td><td class="num">0.68218</td><td><span class="tag t-bad">regressed</span> +36 blind scale fixes; kept only as a record.</td></tr>
+  </table>
+
+  <div class="callout good">
+    <b>What worked — member-confirmed scale fixer (+0.44pt).</b> 8 tightly-gated percent→ratio fixes
+    (<code>phase3_scale_fix.py</code> → <code>v2</code>) took Kaggle <b>0.694 → 0.69838</b>. A row was changed only when a
+    ratio/percent question had value &gt; 1.5 <em>and</em> some member model had already produced the ÷100 form. The gold
+    convention is a <b>decimal ratio</b> (dev: median <code>|ans|</code> = 0.375; 71% ≤ 1.0), and the metric uses a tight
+    absolute tolerance (<code>abs(pred − gold) ≤ 1e-4</code>), so a 100× scale error is always fatal.
+  </div>
+
+  <div class="callout warn">
+    <b>What failed — blind scale fixer (−1.6pt).</b> <code>v3</code> divided 36 more rows by 100 on question wording
+    alone (no member confirmed the ratio form) and dropped to <b>0.68218</b>. Lesson: when all three models agree on the
+    big value, the big value is usually <em>correct</em>. The <b>member-confirmation gate</b> was the real signal, not the
+    wording. Post-processing is now exhausted — further gains need better <em>predictions</em>, not more patching.
+    <b>v2 is frozen as the floor.</b>
+  </div>
+
+  <h3>Where the errors live (test submission, no local labels — proxies only)</h3>
+  <div class="kpi">
+    <div class="box"><div class="big">39%</div><div class="lab">3/3 members unanimous</div></div>
+    <div class="box"><div class="big">42%</div><div class="lab">2/3 agree</div></div>
+    <div class="box"><div class="big">19%</div><div class="lab">only 1/3 agree</div></div>
+    <div class="box"><div class="big">13%</div><div class="lab">pure scale / sign disagreements (64 rows)</div></div>
+  </div>
+  <table>
+    <tr><th>Flag</th><th class="num">Count</th><th>Meaning</th></tr>
+    <tr><td><code>SPLIT_2</code> (2 vs 1)</td><td class="num">210</td><td>One model dissents; medium confidence.</td></tr>
+    <tr><td><code>FULL_DISAGREE</code></td><td class="num">90</td><td>All 3 differ; genuinely hard, often multi-step / table-lookup.</td></tr>
+    <tr><td><code>RATIO_Q_BUT_BIG</code></td><td class="num">68</td><td>Ratio question, answer &gt; 1.5 → candidate 100× too large.</td></tr>
+    <tr><td><code>EXTREME_HIGH</code> (≥1e6)</td><td class="num">10</td><td>Unit confusion ("triệu"/"tỷ" = million/billion).</td></tr>
+    <tr><td><code>ZERO</code></td><td class="num">4</td><td>Extraction failure.</td></tr>
+  </table>
+  <p class="muted">Scripts: <code>analyze_ensemble.py</code>, <code>scale_errors.py</code>, <code>phase3_scale_fix.py</code>;
+  ranked table in <code>kaggle/suspicious_rows.json</code>. The models mostly <em>can</em> read the tables — they fail on
+  <b>conventions</b> (scale, sign, units), not comprehension.</p>
+
+  <!-- ============================================================ -->
+  <h2>Improvement plan</h2>
+
+  <div class="callout good">
+    <b>Done — local validation harness (<code>phase3_dev_eval.py</code>).</b> Scores predictions against the labeled dev
+    set (584 rows) using the project's own metric, sliced by source / complexity / table-lookup / ratio-Q. Self-test on
+    gold programs = <b>100%</b>, so local scoring is trustworthy. This ends the blind Kaggle probing that cost us on v3 —
+    every future change gets a local number first.
+  </div>
+
+  <h3>Next lever — expand the ensemble <span class="tag t-good">recommended</span></h3>
+  <p>Post-processing is tapped out; the lever that actually moved the score historically was <b>ensemble diversity</b>
+  (Coder-7B scored 0.48 alone yet lifted the ensemble). Cheapest reliable path, on Modal (A10G inference, ~$1/hr):</p>
+  <ol>
+    <li>Pick a diverse ≤9B model from a <b>different family</b> (e.g. Llama / Mistral / DeepSeek-Math).</li>
+    <li>Run it over <b>both</b> <code>dev.json</code> and <code>test.json</code> via <code>run_modal.py</code>'s SGLang path.</li>
+    <li>Score its dev output with <code>phase3_dev_eval.py</code> to confirm it is a useful voter.</li>
+    <li>Generate dev predictions for the existing 3 members once, build the vote <b>on dev</b>, and score locally — pick
+        the config (3-way vs 5-way, with / without scale-fix) that wins on dev <em>before</em> submitting.</li>
+    <li>Submit the winner; keep <b>v2 (0.69838)</b> as the floor.</li>
+  </ol>
+  <p class="muted">Realistic ceiling for expanded voting: ~0.70–0.72.</p>
+
+  <h3>Stretch lever — LoRA fine-tune</h3>
+  <p>Highest ceiling, highest cost — do it only if ensemble expansion plateaus. Fine-tune Qwen3-8B on train.json's 2,986
+  gold programs (output the DSL <em>program</em>, auto-verifiable via <code>evaluator.py</code>; over-sample scale / sign /
+  table cases). Needs a bigger GPU (A100/H100) and the harness to tune against. Natural follow-on: rejection sampling —
+  sample N programs per train question, keep those that execute to <code>exe_ans</code>, and SFT on the survivors.</p>
+
+  <div class="callout">
+    <b>Sequence:</b> validation harness (done) → expand ensemble on Modal (measure on dev, then submit) → LoRA only if
+    plateaued. <b>Guardrail:</b> every change is scored on dev before a Kaggle submission, and v2 stays the frozen floor.
+  </div>
+
+  <!-- ============================================================ -->
+  <h2>Session log — 2026-07-06</h2>
+  <p class="muted">Record of today's experiments so the state is clear on next open. Current best remains
+  <b>v2 = 0.69838</b> (frozen floor).</p>
+
+  <h3>Built the local infrastructure</h3>
+  <ul>
+    <li><b><code>phase3_dev_eval.py</code></b> — dev validation harness. Scores predictions vs the 584 labeled dev rows
+        using the project metric (<code>abs(pred−gold) ≤ 1e-4</code>), sliced by source / complexity / table-lookup /
+        ratio-Q. Self-test on gold programs = <b>100%</b> → local scoring is trustworthy.</li>
+    <li><b><code>run_modal.py::predict</code></b> — new entrypoint: runs any ≤9B model on <b>both</b> dev + test via
+        SGLang on A10G, downloads to <code>predict_out/</code>. Added <code>--split {test,dev}</code> to
+        <code>submit.py</code> and committed <code>strategies/seed_strategy.json</code> (evolved strategies live in the
+        gitignored <code>runs/</code>).</li>
+    <li>Modal ops: created the <code>huggingface</code> secret; learned that ephemeral <code>modal run</code> dies on
+        client disconnect — must use <code>modal run --detach</code>.</li>
+  </ul>
+
+  <h3>Experiment: fresh Qwen2.5-Coder-7B on the seed strategy — <span class="tag t-bad">rejected</span></h3>
+  <table>
+    <tr><th>Metric</th><th class="num">Value</th><th>Note</th></tr>
+    <tr><td>Dev accuracy</td><td class="num">28.8%</td><td>168 / 584 — far below the ~0.45 voter bar.</td></tr>
+    <tr><td>Predicted exactly 0.0</td><td class="num">28%</td><td>Executor failed — mostly table ops with wrong row-name args.</td></tr>
+    <tr><td>Invalid ops / inline math</td><td class="num">8%</td><td><code>table_VIC(...)</code>, <code>15/100*5310</code> — not in the DSL.</td></tr>
+  </table>
+  <div class="callout warn">
+    <b>Diagnosis — model-fit problem, not a prompt problem.</b> The always-injected <code>_DSL_BLOCK</code> already forbids
+    nesting, mandates reading literal numbers over table ops (rule 8), and mandates decimal-ratio output (rule 7).
+    Coder-7B <em>ignored</em> all of it and defaulted to Python idioms — Coder models fight the constrained DSL. So
+    improving the prompt won't help a model that disregards it; the lever is <b>model choice</b> (instruction-following
+    models that respect the DSL). <b>Coder-7B dropped as a fresh voter.</b>
+  </div>
+
+  <h3>Fresh-member experiments — all rejected <span class="tag t-bad">ceiling ~25% dev</span></h3>
+  <table>
+    <tr><th>Member (hand-crafted strategy)</th><th class="num">Dev acc</th><th>Finding</th></tr>
+    <tr><td>Qwen2.5-Coder-7B, seed</td><td class="num">28.8%</td><td>Writes Python, invents ops.</td></tr>
+    <tr><td>Qwen3-8B, seed, sc-k 10</td><td class="num">23.3%</td><td>Invents <code>table_value</code>; SC doesn't help (consistently wrong, not noisy).</td></tr>
+    <tr><td>Qwen3-8B, table-aware strategy</td><td class="num">24.8%</td><td>Fixed <code>table_value</code> (invalid ops 1/584, table-lookup 59→73%) — but overall flat.</td></tr>
+  </table>
+  <div class="callout warn">
+    <b>The wall is arithmetic reasoning, not table ops.</b> Even with <code>table_value</code> fixed, arithmetic questions
+    (490/584 rows) stay at <b>15.5%</b> — the model picks wrong numbers/operations. That is <em>not</em> promptable in the
+    time available; it needs the full evolution loop (which tuned the original members) or fine-tuning. Fresh seed-level
+    members cap at ~25% dev, far below the ~0.65 the <em>evolved</em>-strategy members reached. Self-consistency,
+    scale-fixing, and prompt fixes were all tried and none closes this gap.
+  </div>
+  <div class="callout good">
+    <b>Decision — freeze v2 (0.69838) as final.</b> Three fresh-member runs + two post-processing attempts confirm no
+    same-day lever beats the evolved-strategy ensemble. v2 stays the submitted final. Remaining time → the report
+    (grading is rank + writeup, and these negative results are legitimate findings worth documenting). Fine-tuning /
+    post-training remain the only paths with real headroom, but they are multi-day efforts, not today's.
+  </div>
+
+  <h3>Plan for today — target &gt; 0.70 (given competition rules)</h3>
+  <p>Allowed methods (per <code>PHASE3_KAGGLE.md</code>): prompts, few-shot, post-processing, validation, ensembling,
+  self-consistency, fine-tuning, retrieval. Model cap 9B on Modal; pipeline must be reproducible; no leaderboard-probing
+  with tiny manual edits (rule 8) — submit meaningful pipeline changes only.</p>
+  <table>
+    <tr><th>Lever</th><th>Today?</th><th>Expected</th><th>Verdict</th></tr>
+    <tr><td><b>Self-consistency</b> (scale-aware, higher k on Qwen3-8B)</td><td>✅ yes</td><td>+1–2pt</td><td><span class="tag t-good">adopt</span> attacks the scale-split rows directly</td></tr>
+    <tr><td><b>Ensembling</b> (5-way vote, diverse instruct models)</td><td>✅ yes</td><td>+1–3pt</td><td><span class="tag t-good">adopt</span> the lever that already worked (0.658→0.694)</td></tr>
+    <tr><td><b>Prompt / few-shot</b></td><td>✅ cheap</td><td>marginal</td><td><span class="tag t-acc">minor</span> DSL block already strong; light touches only</td></tr>
+    <tr><td><b>Fine-tuning (LoRA)</b></td><td>❌ multi-day</td><td>highest ceiling</td><td><span class="tag t-warn">defer</span> no training code yet; needs A100/H100 + iteration</td></tr>
+    <tr><td><b>Post-training (RS / RL)</b></td><td>❌ multi-day</td><td>highest ceiling</td><td><span class="tag t-warn">defer</span> even heavier than LoRA</td></tr>
+  </table>
+  <div class="callout good">
+    <b>Today's play:</b> self-consistency + ensembling — validate a competent instruct model (Qwen3-8B) on dev, add it as
+    a diverse voter with higher-k scale-aware self-consistency, build the 5-way vote, score on dev, and submit
+    <code>v4</code> only if it beats the dev baseline. Fine-tuning / post-training are the Jul-7–8 push if &gt; 0.72 is
+    wanted; both need the harness (done) to measure. v2 stays the floor throughout.
+  </div>
+
+  <p class="foot">EvoAgent · Advanced-NLP06 Assignment 03 · results &amp; plan as of 2026-07-06.</p>
+
+</div>
+</body>
+</html>
