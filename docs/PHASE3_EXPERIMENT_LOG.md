@@ -6,17 +6,21 @@ and enough reproduction detail to audit the submission later.
 
 ## Current Phase 3 Status
 
-Run 009-lite safe is the current best public submission. Run 008 filtered
-remains the strongest previous targeted-retry baseline, while Run 003 remains
-the most important fallback-hybrid baseline.
-Do not create more Kaggle runs unless the team explicitly reopens Phase 3
-experimentation.
+The team has reopened Phase 3 experimentation after Melanie's ensemble branch
+produced a stronger shared score. The current team-best public submission is
+`submission_ensemble_v2.csv` at `0.69838`. Stephen's best independent
+GPT-OSS-filtered submission is Run 012 safe at `0.66194`.
+
+The next active direction is Run 013: use the team-best `0.69838` ensemble as
+the base and apply GPT-OSS 120B only as a narrow, auditable correction layer.
 
 Final Kaggle candidates:
 
 | Role | Run | File | Public Score | Decision |
 |---|---|---|---:|---|
-| Primary final | Run 009-lite safe | `assignment03/runs/kaggle_hybrid_retry_run009_lite_safe/submission_checked.csv` | 0.65789 | Use as primary final Kaggle file unless a later validated run beats it. |
+| Team current best | Team ensemble v2 | `submission_ensemble_v2.csv` / target local path `assignment03/runs/team_melanie_ensemble_v2/submission_checked.csv` | 0.69838 | Use as the new base for any shared-team improvement. |
+| Stephen previous best | Run 012 GPT-OSS safe | `assignment03/runs/kaggle_hybrid_run012_gptoss_evidence_30_safe/submission_checked.csv` | 0.66194 | Useful GPT-OSS evidence method, but no longer the team base. |
+| Previous Stephen primary | Run 009-lite safe | `assignment03/runs/kaggle_hybrid_retry_run009_lite_safe/submission_checked.csv` | 0.65789 | Superseded by team ensemble v2 for shared-team work. |
 | Alternate / previous best | Run 008 filtered | `assignment03/runs/kaggle_hybrid_retry_run008_agree2/submission_checked.csv` | 0.65587 | Keep as the strongest previous targeted-retry candidate. |
 | Alternate / private hedge | Run 003 | `assignment03/runs/kaggle_hybrid_001_002/submission_checked.csv` | 0.64574 | Keep as simpler fallback-only baseline. |
 | Alternate / private hedge | Run 004 | `assignment03/runs/kaggle_hybrid_003_004/submission_checked.csv` | 0.64574 | Keep as alternate only. |
@@ -24,8 +28,65 @@ Final Kaggle candidates:
 Summary interpretation: hybrid fallback ensembling created the first major
 gain, and targeted retry over remaining zero rows created the next gain. Broad
 numeric post-processing hurt public score, while weak-confidence retry outputs
-needed filtering. Run 009-lite shows that suspicious-row retry can add a small
-additional gain when changes are filtered to avoid new extreme outliers.
+needed filtering. GPT-OSS 120B is feasible on 1x A100 with SGLang and can make
+useful evidence-to-DSL corrections, but the best next move is to apply those
+corrections on top of the stronger shared team ensemble rather than continuing
+from the older `0.65789` base.
+
+## Team Ensemble Results
+
+These submissions came from the shared team work on Melanie's separate branch.
+They are not blindly merged into this branch; the current plan is to copy the
+best shared submission CSV as an input artifact and preserve reproducibility
+through validation and documentation.
+
+| Run/File | Public Score | Decision |
+|---|---:|---|
+| `submission_ensemble.csv` | 0.69433 | Strong team baseline. |
+| `submission_ensemble_v2.csv` | 0.69838 | Current team-best base for Run 013. |
+| `submission_ensemble_v3.csv` | 0.68218 | Lower than v2; do not use as base. |
+
+Required local placement for the current team-best file:
+
+```text
+assignment03/runs/team_melanie_ensemble_v2/submission_checked.csv
+```
+
+Validation requirements before using it as a base:
+
+- 494 rows.
+- Columns: `id,Usage,predicted_value`.
+- Exact `assignment03/data/test.json` ID order.
+- No duplicate IDs.
+- No blank, missing, non-numeric, or non-finite predictions.
+
+## Run 013 - Planned GPT-OSS Corrections on Team Ensemble V2
+
+| Field | Value |
+|---|---|
+| Status | Planned / not submitted yet |
+| Base file | `assignment03/runs/team_melanie_ensemble_v2/submission_checked.csv` |
+| Base score | 0.69838 |
+| Solver | GPT-OSS 120B evidence-to-DSL through SGLang |
+| Target count | Start with 60 suspicious rows |
+| Output prefix | `assignment03/runs/kaggle_run013_gptoss_on_team_v2/` |
+| Variant builder | `assignment03/phase3_build_run013_variants.py` |
+
+Run 013 should build three conservative variants from the same GPT-OSS retry
+details:
+
+| Variant | Output directory | Rule |
+|---|---|---|
+| A | `runs/kaggle_hybrid_run013_gptoss_on_team_v2_zero_only/` | Replace only current-base zero rows. |
+| B | `runs/kaggle_hybrid_run013_gptoss_on_team_v2_zero_sign/` | Variant A plus negative-to-positive sign fixes for absolute-change wording. |
+| C | `runs/kaggle_hybrid_run013_gptoss_on_team_v2_high_conf/` | Variant B plus high-confidence nonzero fixes with strong suspicious-row signals. |
+
+Submit the safest validated variant first, preferably A or B if it changes
+only a few auditable rows. Stop if the first team-base GPT-OSS variant reduces
+the public score.
+
+No external lookup is allowed: no web search, source PDF lookup, IDs, URLs,
+page metadata, or hidden-label inference for answer recovery.
 
 ## Run 001 - EvoAgent ARC Best Strategy Baseline
 

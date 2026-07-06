@@ -11,7 +11,7 @@ The project has three practical tracks:
 | Track | Goal | Current Status |
 |---|---|---|
 | Milestone 1 | Implement EvoAgent stages and generate proof artifacts. | Complete and locally verified. |
-| Milestone 2 / Phase 3 | Improve Kaggle public score with generated predictions. | Current best public score is `0.65789`. |
+| Milestone 2 / Phase 3 | Improve Kaggle public score with generated predictions. | Shared team best public score is `0.69838`; Stephen's best independent GPT-OSS-filtered run is `0.66194`. |
 | ThinkFlic final package | Prepare final source, evidence, report, integrity declaration, and final Kaggle file. | Scaffold exists, final metadata still pending. |
 
 Team:
@@ -21,13 +21,21 @@ Team:
 | Melanie | `yeyeezyzeus` |
 | Nguyen Phan Nguyen - Stephen | `nguynphannguyn` |
 
-Current best final candidate:
+Current shared-team best candidate:
 
-- Best public score: `0.65789`
-- Primary final run: Run009-lite safe
-- Primary final file: `assignment03/runs/kaggle_hybrid_retry_run009_lite_safe/submission_checked.csv`
-- Method: start from Run008 filtered, retry a narrow suspicious-row set, then keep only three auditable high-confidence changes that do not introduce a new extreme outlier
-- Alternate final candidates: Run008 filtered at `0.65587`, plus Run003 and Run004 at `0.64574`
+- Best public score: `0.69838`
+- Primary shared-team run: Melanie ensemble v2
+- Source file name: `submission_ensemble_v2.csv`
+- Target local path for Stephen's Run013 work: `assignment03/runs/team_melanie_ensemble_v2/submission_checked.csv`
+- Method: team ensemble from Melanie's separate branch, used as the new base for shared-team improvements
+
+Stephen's current GPT-OSS line:
+
+- Best public score: `0.66194`
+- Run: Run012 GPT-OSS safe 3-change hybrid
+- File: `assignment03/runs/kaggle_hybrid_run012_gptoss_evidence_30_safe/submission_checked.csv`
+- Method: GPT-OSS 120B evidence-to-DSL corrections filtered down to three auditable changes on top of Run009-lite safe
+- Decision: useful method, but future GPT-OSS work should start from the stronger team ensemble v2 base
 
 ## 2. Implementation Summary
 
@@ -163,6 +171,10 @@ Security warning:
 | Run008 filtered | Targeted retry over Run003 zero rows, keeping only `agreement_count >= 2` recoveries | 0.65587 | `assignment03/runs/kaggle_hybrid_retry_run008_agree2/submission_checked.csv` | Previous best. Recovered 6 higher-confidence zero/fallback rows from Run003. |
 | Run009-lite safe | Suspicious-row targeted retry over Run008 filtered, excluding unchanged rows and new extreme outliers | 0.65789 | `assignment03/runs/kaggle_hybrid_retry_run009_lite_safe/submission_checked.csv` | Current primary final. Kept 3 auditable changes and improved public score without increasing extreme count. |
 | Run011 GPT-OSS smoke | SGLang-served `openai/gpt-oss-120b` feasibility and adapter smoke | Not submitted | `assignment03/runs/kaggle_run011_model_smoke/` | Feasibility only. 120B loaded on 1x A100 and produced parseable DSL, but the first 10-row smoke changed only one row. |
+| Run012 GPT-OSS safe | GPT-OSS 120B evidence-to-DSL over 30 suspicious rows, filtered to 3 safe changes | 0.66194 | `assignment03/runs/kaggle_hybrid_run012_gptoss_evidence_30_safe/submission_checked.csv` | Improved Stephen's line, but still below the shared team ensemble. |
+| Team ensemble | Melanie shared-team ensemble | 0.69433 | `submission_ensemble.csv` | Stronger than Stephen's Run012 line. |
+| Team ensemble v2 | Melanie shared-team ensemble v2 | 0.69838 | `submission_ensemble_v2.csv` | Current shared-team best and new base for Run013. |
+| Team ensemble v3 | Melanie shared-team ensemble v3 | 0.68218 | `submission_ensemble_v3.csv` | Lower than v2; do not use as base. |
 
 ### Why Run009-Lite Safe Is Best So Far
 
@@ -203,6 +215,20 @@ Run009-lite safe: 0.65789
 - Bigger context failed: Run006 had more zero predictions than Run001.
 - Extra fallback rows plateaued when they came from similar submissions: Run004 tied Run003, and Run007 was not worth submitting.
 - Targeted retry worked only after confidence filtering; suspicious or extreme replacements were excluded from the submitted Run008 and Run009-safe files.
+- GPT-OSS 120B is feasible and useful, but applying it to Stephen's older `0.65789` base is no longer the highest-leverage path now that the shared team has a `0.69838` ensemble.
+
+### Current Run013 Direction
+
+Run013 should use `submission_ensemble_v2.csv` as the base, placed at
+`assignment03/runs/team_melanie_ensemble_v2/submission_checked.csv`, then run
+GPT-OSS evidence-to-DSL only over a small suspicious set. The new helper
+`assignment03/phase3_build_run013_variants.py` builds three candidate variants:
+
+- Variant A: zero-row fixes only.
+- Variant B: zero-row fixes plus conservative negative-to-positive absolute-change sign fixes.
+- Variant C: Variant B plus high-confidence nonzero fixes with strong suspicious signals.
+
+Submit only the safest validated variant after inspecting `changes.csv`.
 
 ## 7. Important Lessons
 

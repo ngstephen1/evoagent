@@ -7,17 +7,19 @@ Hard boundaries:
 - Do not use hidden labels or infer test answers manually.
 - Do not commit secrets, HF tokens, Kaggle tokens, `.env` files, private keys, model weights, or caches.
 - Do not treat the public leaderboard as a tuning oracle through excessive submissions.
-- Keep Run009-lite safe stable as the primary final candidate unless a validated method clearly beats it.
+- Keep the shared team-best `submission_ensemble_v2.csv` stable as the primary base unless a validated method clearly beats it.
 
 ## 1. Current Baseline and Plateau
 
-Current best public score: `0.65789`.
+Current shared-team best public score: `0.69838`.
 
-Current best submission:
+Current shared-team best submission:
 
-- Run: Run009-lite safe
-- File: `assignment03/runs/kaggle_hybrid_retry_run009_lite_safe/submission_checked.csv`
-- Method: start from Run008 filtered, retry a narrow suspicious-row set, then keep only meaningful high-confidence changes that do not introduce new extreme outliers
+- Run: Melanie team ensemble v2
+- File name: `submission_ensemble_v2.csv`
+- Target local path for Stephen's next work: `assignment03/runs/team_melanie_ensemble_v2/submission_checked.csv`
+- Public score: `0.69838`
+- Method: team ensemble from Melanie's separate branch, used as the new shared-team base
 
 Run003 worked because Run001 was the strongest single strategy but had many failure-like `0.0` predictions. Run002 was weaker globally, but it often produced executable programs for rows where Run001 failed. The hybrid kept Run001's nonzero predictions and used Run002 only as a fallback source.
 
@@ -32,11 +34,16 @@ retry helped:
   changed 6 higher-confidence rows and improved public score to `0.65587`.
 - Run009-lite targeted 60 suspicious Run008 rows; the safe submitted variant
   kept 3 auditable changes and improved public score to `0.65789`.
+- Run012 GPT-OSS safe used SGLang-served GPT-OSS 120B and a two-stage
+  evidence-to-DSL pipeline to create a 3-change safe hybrid at `0.66194`.
+- Melanie's ensemble v2 then became the shared-team best at `0.69838`, so the
+  highest-leverage next experiment is to apply GPT-OSS corrections on top of
+  that stronger base rather than continuing from `0.65789`.
 
 The conclusion is that future gains need a stronger new signal beyond the
-current Run009-lite safe retry. Simple fallback patching is mostly exhausted.
-The next improvement must recover the remaining failed rows with even higher
-confidence, repair invalid programs, route examples to genuinely better
+current team ensemble. Simple fallback patching is mostly exhausted. The next
+improvement must recover a small number of high-confidence errors in the
+`0.69838` base, repair invalid programs, route examples to genuinely better
 specialists, or use better context/modeling under the assignment rules.
 
 ## 2. Improvement Options Summary Table
@@ -57,6 +64,29 @@ specialists, or use better context/modeling under the assignment rules.
 | Full agentic solver with verification loop | Propose, execute, verify, and retry with feedback. | High | Very Hard | Possible but uncertain | High | 8-30 | 12 | Medium to high |
 | Human-readable error taxonomy + automatic rule miner | Mine dev failures and propose safe targeted fixes. | Low to medium | Hard | Possible but uncertain | Low | 0-1 | 13 | Medium |
 | Private-leaderboard robustness strategy | Choose final candidates with lower overfit risk. | Low to medium | Medium | Realistic | Low | 0 | 14 | Medium |
+
+## 2.1 Immediate Run013 Plan
+
+Run013 is the next practical path toward `>0.70`.
+
+- Base: `assignment03/runs/team_melanie_ensemble_v2/submission_checked.csv`
+  copied from `submission_ensemble_v2.csv`.
+- Model: GPT-OSS 120B served with SGLang on 1x A100.
+- Target count: start with 60 suspicious rows from the team-best base.
+- Solver: existing GPT-OSS evidence-to-DSL pipeline.
+- Builder: `assignment03/phase3_build_run013_variants.py`.
+
+Build three variants from one GPT-OSS retry run:
+
+| Variant | Rule | Risk |
+|---|---|---|
+| A | Replace only current-base zero rows. | Lowest |
+| B | Variant A plus sign fixes where the question asks for an absolute change and GPT-OSS returns `abs(old_value)`. | Low to medium |
+| C | Variant B plus high-confidence nonzero replacements with strong suspicious-row signals. | Medium |
+
+Submit only one validated variant at a time, starting with A or B if it changes
+at least one auditable row. Stop if the first team-base GPT-OSS variant scores
+below `0.69838`.
 
 ## 3. Detailed Option Plans
 
