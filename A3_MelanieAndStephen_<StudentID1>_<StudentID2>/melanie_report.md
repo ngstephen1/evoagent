@@ -6,15 +6,20 @@ This report documents the Phase 3 improvements made by Melanie to the EvoAgent
 Kaggle pipeline, written for the team (Stephen) with enough technical detail to
 reproduce and extend the work. Starting from the team's previous best public
 score of 0.65789 (the Run009-lite hybrid built on a 4-billion-parameter model),
-the work in this session raised the public leaderboard score to **0.70242**, an
-improvement of about 4.5 points, crossing the 0.70 mark. The gains came from
-changes applied one at a time and validated before acceptance: a larger base
-model, self-consistency inference, a majority-vote ensemble across diverse models,
-and two rounds of member-confirmed numeric post-processing (scale then sign). A
-local dev-validation harness was built so candidate changes could be measured
-before spending Kaggle submissions, and several tempting changes were rejected on
-that evidence (a blind post-processing pass and three from-scratch ensemble
-members), which is documented as part of the method.
+the work in this session raised the public leaderboard score to **0.74696**, an
+improvement of about 8.9 points. The gains came from changes applied one at a time
+and validated before acceptance: a larger base model, self-consistency inference,
+a majority-vote ensemble across diverse models, two rounds of member-confirmed
+numeric post-processing (scale then sign, reaching 0.70242), **QLoRA fine-tuning of
+Qwen3-8B on the training programs (0.72267)**, a **broken-row fallback merge with a
+second fine-tuned model (0.72874)**, and finally **rejection-sampling / STaR
+self-training that produced the best result, 0.74696**. A local dev-validation
+harness was built so candidate changes could be measured before spending Kaggle
+submissions, and several tempting changes were rejected on that evidence (a blind
+post-processing pass, three from-scratch prompted ensemble members, self-consistency
+on the fine-tuned model, and a two-model ensemble), which is documented as part of
+the method. Fine-tuning, not prompting or ensembling, was the decisive family of
+levers on this task.
 
 All experiments ran on a compute node with four NVIDIA H100 80GB GPUs accessed
 over SSH, using SGLang for inference. Every model used is an open-weight model of
@@ -26,6 +31,14 @@ Team members:
 |---|---|---|
 | Melanie | TBD | `yeyeezyzeus` |
 | Nguyen Phan Nguyen - Stephen | TBD | `nguynphannguyn` |
+
+![Phase-3 improvement journey: Kaggle public score from 0.658 to 0.747, and dev accuracy by question type comparing the fine-tuned and rejection-sampled models.](results_progression.png)
+
+*Figure 1 — Left: Kaggle public-score progression across the session, colored by
+method family. The single regression (blind post-processing, v3) was caught on the
+local dev set and reverted. Right: dev accuracy by question type; rejection sampling
+(STaR) most improved multi-step programs, the previous ceiling (+13 points). Generated
+by `assignment03/phase3_visualize_results.py`.*
 
 ## Methodology
 
@@ -124,6 +137,11 @@ to the previous single-GPU, single-sample behaviour.
 | `phase3_scale_fix.py` | New script: targeted, member-confirmed percent→ratio post-processor (CPU-only); produced the 0.69838 best submission. |
 | `phase3_dev_eval.py` | New script: local validation harness — scores predictions against the 584 labeled dev rows with the project metric, sliced by category (CPU-only). |
 | `submit.py` | Added `--split {test,dev}` so predictions can be generated on the labeled dev split for local scoring. |
+| `phase3_build_sft_data.py` | New script: builds the LoRA SFT dataset from train.json (2,786 examples) in the exact inference-prompt format, target `PROGRAM: <gold>`. |
+| `train_lora.py` | New script: QLoRA SFT (4-bit base + LoRA), prompt-masked labels so only the program tokens are trained; handles Qwen3 thinking-mode off. |
+| `merge_lora.py` | New script: merges the LoRA adapter into the base and saves a full model dir SGLang can serve. |
+| `run_modal.py` | Added `predict` (any model over dev+test), `finetune` (A100 QLoRA train+merge, accepts `--train-file`), `rejection_sample` (A10G STaR sampling + dataset combine), and `strategies/*.json`. |
+| `phase3_rejection_sample.py` | New script: sample k programs/train-question from the FT model, keep execution-verified distinct programs, write augmented SFT dataset. |
 
 ## Kaggle Experiments
 
@@ -135,7 +153,11 @@ to the previous single-GPU, single-sample behaviour.
 | Ensemble | 3-way majority vote (8B k16 + hybrid + Coder-7B) | 0.69433 | Superseded by v2 |
 | Ensemble v2 | 3-way vote + targeted member-confirmed scale fix (8 rows) | 0.69838 | Superseded by v4 |
 | Ensemble v3 | v2 + 36 wording-based (blind) scale fixes | 0.68218 | Rejected (regressed) |
-| Ensemble v4 | v2 + 2 member-confirmed sign flips | **0.70242** | **Primary final (>0.70)** |
+| Ensemble v4 | v2 + 2 member-confirmed sign flips | 0.70242 | Post-processing ceiling |
+| LoRA FT Qwen3-8B | QLoRA fine-tune on train programs, greedy (sc-k 1) | 0.72267 | Strong single model |
+| LoRA FT Qwen2.5-7B | second fine-tune, different family | 0.71255 | Diversity / hedge |
+| FT merged | Qwen3-8B FT; broken rows (0/invalid/extreme) rescued by Qwen2.5-7B FT | 0.72874 | Superseded by RS |
+| **RS / STaR Qwen3-8B** | re-fine-tune on gold + self-verified sampled programs | **0.74696** | **Primary final** |
 
 For reference, the previous team best was Run009-lite at 0.65789.
 
@@ -194,6 +216,98 @@ post-processing fixes (v2, then v4). This is why the local validation harness
 matters: it let these three candidates be rejected on dev without spending Kaggle
 submissions.
 
+## LoRA Fine-Tuning (the breakthrough, 0.72267)
+
+After post-processing was exhausted at 0.70242 and three from-scratch prompted
+members capped at ~0.25 dev, the remaining lever was fine-tuning. The diagnosis was
+clear: prompted models understood the tables but violated the DSL (inventing
+operations such as `table_value`, nesting functions, and defaulting to Python-style
+arithmetic), and the true wall was arithmetic reasoning (15.5% dev on arithmetic
+questions). Fine-tuning teaches the exact DSL dialect and the correct number
+selection directly, which prompting could not.
+
+**Data.** All 2,786 training examples were converted to chat triples whose user turn
+is exactly the inference prompt (same `build_prompt` and injected DSL rules that
+`submit.py` uses) and whose assistant turn is the gold program in the `PROGRAM: ...`
+form the parser expects. Training on the exact inference distribution means the
+adapter drops straight into the existing pipeline. A minimal no-few-shot strategy
+(`strategies/ft_strategy.json`) is used for both training and inference so the two
+match and prompts stay short.
+
+**Method.** QLoRA on `Qwen/Qwen3-8B`: 4-bit NF4 base, LoRA rank 16 / alpha 32 on all
+attention and MLP projections (43.6M trainable params, 0.53%), 2 epochs, effective
+batch 16, cosine schedule, paged 8-bit AdamW, gradient checkpointing, max sequence
+2,048. Labels are masked over the prompt so loss is computed only on the program
+tokens. The Qwen3 chat template is applied with thinking mode disabled so the target
+is a clean program. Training ran on a single Modal A100-80GB in about 1h50m; the
+adapter is then merged into the base and served with the existing SGLang path. Total
+fine-tuning compute cost was a few US dollars.
+
+**Result.** Training converged smoothly (held-out eval loss 0.086 -> 0.073).
+Fine-tuned dev accuracy was **78.08%** (456/584), versus 23-29% for the same models
+when only prompted:
+
+| Slice | Prompted Qwen3-8B | Fine-tuned Qwen3-8B |
+|---|---:|---:|
+| Overall | 23.3% | **78.1%** |
+| Arithmetic | 15.5% | 76.3% |
+| Table-lookup | 59.6% | 87.2% |
+| Ratio/percent | 18.4% | 80.4% |
+| Multi-step (3+ ops) | 4.3% | 47.8% |
+
+On Kaggle the fine-tuned model scored **0.72267** greedy (single pass), a +2.0 point
+gain over the best post-processing ensemble (0.70242) and +6.5 over the prior team
+best. The remaining weak slice is multi-step programs (3+ operations), which is the
+natural next target. This is a fully reproducible pipeline: build data, train, merge,
+infer, all from committed scripts.
+
+## Second Fine-Tune and the Broken-Row Fallback Merge (0.72874)
+
+A second model, `Qwen/Qwen2.5-7B-Instruct`, was fine-tuned with the identical
+pipeline for diversity. It reached 76.5% dev and 0.71255 on Kaggle — a strong but
+slightly weaker, differently-behaving solver. A plain majority vote of the two
+fine-tuned models is mathematically degenerate (with two voters, every disagreement
+breaks to the priority model, so the vote just equals the stronger model), and a
+category router validated on dev regressed, so simple ensembling was rejected.
+
+What did work is a **targeted fallback merge**: keep the Qwen3-8B fine-tuned
+predictions everywhere, except on rows where its output is clearly broken — an
+executed value of exactly 0, a program using an operation outside the DSL, or an
+extreme outlier (|value| >= 1e9) — and on only those rows substitute the Qwen2.5-7B
+answer. Because those rows are almost certainly wrong already, the substitution can
+only help or stay neutral. It was validated on dev (+1 row, no regressions), changed
+3 rows on the test set, and lifted Kaggle from 0.72267 to **0.72874**. The rule is
+implemented as a small CPU-only post-processing step over the two submission CSVs.
+
+## Rejection Sampling / STaR (the best result, 0.74696)
+
+The largest post-fine-tuning gain came from self-training. Using the fine-tuned
+Qwen3-8B model, k=8 programs were sampled per training question at temperature 0.8
+(`phase3_rejection_sample.py`), each candidate was executed with the DSL evaluator,
+and only the DISTINCT programs whose executed value matched the gold answer were
+kept (up to 3 per question). This yielded verified programs for **88.6% of training
+questions** (2,646 / 2,986) and **2,825 new verified examples**, doubling the SFT
+dataset to 5,611 when combined with the original gold programs. The model was then
+re-fine-tuned on this augmented, self-verified dataset with the same QLoRA recipe.
+
+The point of rejection sampling is that it captures the model's own *correct*
+reasoning — including multiple valid programs for the same answer, and rare correct
+solutions to hard questions that a single greedy pass misses. The effect was exactly
+where it was expected:
+
+| Slice | FT Qwen3-8B | RS / STaR |
+|---|---:|---:|
+| Overall dev (value-mode) | 75.68% | **77.91%** |
+| Overall dev (program-mode) | 78.08% | 79.62% |
+| Arithmetic | 76.3% | 78.0% |
+| Table-lookup | 87.2% | 88.3% |
+| **Multi-step (3+ ops)** | 47.8% | **60.9%** |
+
+The multi-step slice — the previous ceiling — rose from 47.8% to 60.9%. On Kaggle
+the rejection-sampled model scored **0.74696**, a +1.8 point gain over 0.72874 and
+the best result of the project. The pipeline is fully reproducible and CPU/GPU costs
+were modest (rejection sampling on A10G, re-training on one A100-80GB).
+
 ## Reproducibility
 
 The strategy was evolved with the 8B model and self-consistency on the GPU node:
@@ -247,30 +361,74 @@ modal run --detach run_modal.py::predict \
   --strategy-path strategies/<strategy>.json     # runs dev + test, downloads both
 ```
 
+The LoRA fine-tune that produced the final 0.72267 model:
+
+```bash
+# 1. Build the SFT dataset (CPU, local)
+python3 phase3_build_sft_data.py                 # -> data_sft/{train,eval}_sft.jsonl
+
+# 2. QLoRA train + merge on a Modal A100-80GB (~1h50m)
+modal run --detach run_modal.py::finetune \
+  --base-model Qwen/Qwen3-8B --epochs 2 --tag qwen3_8b
+
+# 3. Inference with the merged fine-tuned model (dev + test)
+modal run --detach run_modal.py::predict \
+  --model /runs/lora_merged_qwen3_8b --sc-k 1 --tag ft-qwen3-8b \
+  --strategy-path strategies/ft_strategy.json
+
+# 4. Score dev locally, then submit predict_out/ft-qwen3-8b_test.csv
+python3 phase3_dev_eval.py --pred predict_out/ft-qwen3-8b_dev_details.json --mode program
+```
+
+Rejection sampling / STaR that produced the best 0.74696 model:
+
+```bash
+# 1. Sample the FT model on train, keep verified programs, combine with gold
+modal run --detach run_modal.py::rejection_sample \
+  --model /runs/lora_merged_qwen3_8b --k 8 --temp 0.8   # -> /runs/rs/train_sft_combined.jsonl
+
+# 2. Re-fine-tune Qwen3-8B on the augmented dataset (5,611 examples)
+modal run --detach run_modal.py::finetune \
+  --base-model Qwen/Qwen3-8B --epochs 2 --tag qwen3_8b_rs \
+  --train-file /runs/rs/train_sft_combined.jsonl
+
+# 3. Inference + score; submit predict_out/ft-qwen3-8b-rs_test.csv
+modal run --detach run_modal.py::predict \
+  --model /runs/lora_merged_qwen3_8b_rs --sc-k 1 --tag ft-qwen3-8b-rs \
+  --strategy-path strategies/ft_strategy.json
+python3 phase3_dev_eval.py --pred predict_out/ft-qwen3-8b-rs_dev_details.json --mode program
+```
+
 ## Next Steps
 
-The final result is **v4 (0.70242)**. Post-processing is now exhausted: every
-member-confirmed correction (8 scale + 2 sign) has been applied, and blind edits
-were shown to regress (v3). Fresh ensemble members on hand-crafted strategies cap
-at ~0.25 dev because of the arithmetic-reasoning bottleneck, so they cannot help
-the vote. The only remaining levers with real headroom therefore require training
-or genuine new diversity:
+The final result is the **rejection-sampled Qwen3-8B at 0.74696**. Fine-tuning and
+self-training were the decisive levers; prompting, post-processing, and ensembling
+were tried and shown (on dev) not to beat them. Remaining levers, in order of
+expected value:
 
-1. **LoRA fine-tuning on the train programs.** Teach the exact DSL dialect and the
-   decimal-ratio convention directly; the executor gives a verifiable reward and the
-   validation harness measures it on dev. This is the single lever most likely to
-   move arithmetic accuracy, but it is a multi-day effort on a larger GPU.
-2. **Rejection-sampling / STaR bootstrap.** Sample many programs per train question,
-   keep only those that execute to the gold answer, and fine-tune on the survivors —
-   a cheaper precursor to full fine-tuning that reuses existing inference tooling.
-3. **Re-run the evolution loop for a new model** to obtain a properly tuned strategy
-   (the evolved strategies reached ~0.65; the seed strategy caps near 0.25).
-4. **Within-team ensembling.** Voting v4 against the teammate's independently-built
-   pipeline is allowed (same team) and is the fastest source of new diversity.
+1. **A second round of rejection sampling / STaR.** Sample from the *0.74696* model
+   (not the first FT model) to capture newly-solvable hard questions, and re-train on
+   the further-enlarged verified set. STaR often gains across 2-3 rounds before
+   plateauing.
+2. **Target multi-step further.** The weakest slice is still 3+ operation programs
+   (60.9% dev, up from 47.8%). Over-sampling multi-step verified programs, more epochs,
+   or a larger LoRA rank should push it further.
+3. **GRPO / RLVR.** The DSL evaluator is a binary verifiable reward, so GRPO can
+   directly optimize execution accuracy on top of the SFT/STaR checkpoint. Highest
+   ceiling, highest cost (multi-day).
+4. **Final model on train+dev combined.** Once dev is no longer needed for validation,
+   re-train on all 3,570 labeled examples for a small final gain.
+5. **Within-team ensembling.** Voting the 0.74696 model against the teammate's
+   independently-built pipeline is allowed (same team) and is a further source of
+   diversity.
 
 Because grading is rank-based and the public score is only a proxy for the private
-leaderboard, **v4 (0.70242) is the primary final candidate**, with v2 (0.69838) and
-the stable 4B hybrid kept as private-leaderboard hedges.
+leaderboard, **the rejection-sampled Qwen3-8B (0.74696) is the primary final
+candidate**, with the fine-tuned Qwen3-8B (0.72267) and the FT-merged (0.72874) kept
+as private-leaderboard hedges.
+
+
+
 
 ## Integrity Declaration Summary
 
@@ -279,3 +437,9 @@ Kaggle outputs came from documented model inference runs and deterministic
 ensemble rules that can be reproduced from the commands above. Hugging Face
 tokens, Kaggle credentials, private keys, and model weights are excluded from the
 repository.
+
+
+## Improvement plan:
+ensemble (now) → rejection sampling/STaR → target multi-step → (if time) GRPO → final train+dev
+## To try tomorrow:
+Rejection sampling (STaR) with the second fine-tune runs.
