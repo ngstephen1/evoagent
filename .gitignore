@@ -70,3 +70,11 @@ A3_MelanieAndStephen_<StudentID1>_<StudentID2>/kaggle/final_submission.csv
 A3_MelanieAndStephen_<StudentID1>_<StudentID2>/kaggle/submission_ensemble_api3.csv
 A3_MelanieAndStephen_<StudentID1>_<StudentID2>/kaggle/submission_ft_qwen3_8b_rs.csv
 A3_MelanieAndStephen_<StudentID1>_<StudentID2>/evidence/prediction_artifacts/*.csv
+
+A3_MelanieAndStephen_<StudentID1>_<StudentID2>/kaggle/submission_8b_sc5.csv
+A3_MelanieAndStephen_<StudentID1>_<StudentID2>/kaggle/submission_ensemble.csv
+A3_MelanieAndStephen_<StudentID1>_<StudentID2>/kaggle/submission_ensemble_v4.csv
+A3_MelanieAndStephen_<StudentID1>_<StudentID2>/kaggle/submission_ft_merged.csv
+A3_MelanieAndStephen_<StudentID1>_<StudentID2>/kaggle/submission_ft_qwen25_7b.csv
+A3_MelanieAndStephen_<StudentID1>_<StudentID2>/kaggle/submission_ft_qwen3_8b.csv
+assignment03/predict_out/*.csv
