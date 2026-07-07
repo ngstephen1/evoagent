@@ -12,28 +12,58 @@ Primary final Kaggle file:
 - kaggle/final_submission.csv
 
 Source artifact:
-- assignment03/runs/kaggle_hybrid_retry_run009_lite_safe/submission_checked.csv
+- assignment03/runs/team_melanie_ensemble_api3/submission_checked.csv
+
+Kaggle submitted filename:
+- submission_ensemble_api3.csv
 
 Primary public score:
-- 0.65789
+- 0.80161
 
 Final private score/rank:
 - TBD after Kaggle private leaderboard is released.
 
-Alternate candidate:
-- assignment03/runs/kaggle_hybrid_retry_run008_agree2/submission_checked.csv
-- Public score: 0.65587
-- Role: strongest previous targeted-retry candidate.
+Primary final method:
+- Three-way API/fine-tuned ensemble over assignment-provided test-row context.
+- Inputs:
+  - rejection-sampled Qwen3-8B fine-tuned predictions
+  - Gemini 2.5 Flash predictions
+  - DeepSeek-V3 predictions
+- Selection:
+  - deterministic voting and tie-breaker logic
+  - priority toward the rejection-sampled Qwen3-8B answer when agreement was not decisive
+- Integrity:
+  - no hidden labels
+  - no manual test-answer labeling
+  - no source PDF lookup
+  - no external search or filename/page-metadata lookup for answer recovery
 
-Alternate candidate:
-- assignment03/runs/kaggle_hybrid_001_002/submission_checked.csv
-- Public score: 0.64574
-- Role: simpler fallback-only baseline/private-leaderboard hedge.
+Important alternate candidates:
 
-Alternate candidate:
-- assignment03/runs/kaggle_hybrid_003_004/submission_checked.csv
-- Public score: 0.64574
-- Role: alternate/private-leaderboard hedge only.
+- assignment03/runs/team_melanie_ft_qwen3_8b_rs/submission_checked.csv
+  - Submitted as: submission_ft_qwen3_8b_rs.csv
+  - Public score: 0.74696
+  - Role: strongest self-hosted/non-API alternate.
+
+- assignment03/runs/team_melanie_ft_merged/submission_checked.csv
+  - Submitted as: submission_ft_merged.csv
+  - Public score: 0.72874
+  - Role: intermediate fine-tuned ensemble.
+
+- assignment03/runs/team_melanie_ft_qwen3_8b/submission_checked.csv
+  - Submitted as: submission_ft_qwen3_8b.csv
+  - Public score: 0.72267
+  - Role: first strong fine-tuned Qwen3-8B result.
+
+- assignment03/runs/team_melanie_ensemble_v4/submission_checked.csv
+  - Submitted as: submission_ensemble_v4.csv
+  - Public score: 0.70242
+  - Role: previous best before fine-tuned/API runs.
+
+- assignment03/runs/kaggle_hybrid_retry_run009_lite_safe/submission_checked.csv
+  - Submitted as: submission_checked.csv
+  - Public score: 0.65789
+  - Role: best Stephen-only targeted retry/hybrid before team fine-tuning and API ensemble.
 
 Experiment summary:
 
@@ -51,19 +81,19 @@ Run003:
 - Method: hybrid Run001 fallback to Run002 nonzero predictions.
 - File: assignment03/runs/kaggle_hybrid_001_002/submission_checked.csv
 - Public score: 0.64574
-- Decision: previous best and alternate/private-leaderboard hedge.
+- Decision: first major hybrid improvement.
 
 Run004:
 - Method: hybrid Run003 fallback to iter004 nonzero predictions.
 - File: assignment03/runs/kaggle_hybrid_003_004/submission_checked.csv
 - Public score: 0.64574
-- Decision: alternate only.
+- Decision: tied Run003, not final.
 
 Run005:
 - Method: conservative numeric post-processing over Run003.
 - File: assignment03/runs/kaggle_postprocess_run005/submission_checked.csv
 - Public score: 0.64170
-- Decision: not final.
+- Decision: rejected because broad deterministic post-processing reduced public score.
 
 Run006:
 - Method: context-expanded rerun of Run001 strategy.
@@ -79,19 +109,32 @@ Run008 filtered:
 - Method: targeted retry over Run003 zero rows; keep only agreement_count >= 2 recoveries.
 - File: assignment03/runs/kaggle_hybrid_retry_run008_agree2/submission_checked.csv
 - Public score: 0.65587
-- Kaggle status: complete.
-- Decision: previous best and strongest alternate.
+- Decision: superseded.
 
 Run009-lite safe:
 - Method: suspicious-row targeted retry over Run008 filtered; keep only safe meaningful changes and exclude new extreme outliers.
 - File: assignment03/runs/kaggle_hybrid_retry_run009_lite_safe/submission_checked.csv
 - Public score: 0.65789
-- Kaggle status: complete.
-- Decision: primary final candidate.
+- Decision: superseded by team fine-tuned/API ensemble.
+
+Run012 GPT-OSS safe:
+- Method: GPT-OSS 120B evidence-to-DSL correction over Run009-lite safe, manually filtered to three high-confidence changes.
+- File: assignment03/runs/kaggle_hybrid_run012_gptoss_evidence_30_safe/submission_checked.csv
+- Public score: 0.66194
+- Decision: useful method signal, not final.
+
+Team fine-tuned/API progression:
+- submission_ensemble.csv: 0.69433
+- submission_ensemble_v2.csv: 0.69838
+- submission_ensemble_v4.csv: 0.70242
+- submission_ft_qwen3_8b.csv: 0.72267
+- submission_ft_qwen25_7b.csv: 0.71255
+- submission_ft_merged.csv: 0.72874
+- submission_ft_qwen3_8b_rs.csv: 0.74696
+- submission_ensemble_api3.csv: 0.80161
 
 Final choice rationale:
 - Hybrid fallback ensembling produced the first major public-score gain.
-- Targeted retry over remaining zero rows produced the first targeted-retry gain.
-- Run009-lite safe improved again by applying only three auditable high-confidence changes over Run008 filtered.
-- Broad numeric post-processing reduced public score.
-- Low-confidence single-candidate retry recoveries were filtered out before submission.
+- Targeted retry recovered additional zero/failure cases but plateaued below 0.67.
+- Fine-tuned Qwen models and rejection sampling provided a much stronger base.
+- The final API3 ensemble combined complementary strong model predictions and crossed 0.80 while preserving reproducible deterministic aggregation.

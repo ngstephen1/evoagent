@@ -63,6 +63,10 @@ class QwenInference:
         use_4bit: bool = True,
         gpu_memory_utilization: float = 0.85,
         max_model_len: int = 8192,
+        tp_size: int = 1,
+        dp_size: int = 1,
+        self_consistency_k: int = 1,
+        self_consistency_temp: float = 0.6,
     ):
         self.model_name_or_path = model_name_or_path
         self.max_new_tokens = max_new_tokens
@@ -70,6 +74,12 @@ class QwenInference:
         self.use_4bit = use_4bit
         self.gpu_memory_utilization = gpu_memory_utilization
         self.max_model_len = max_model_len
+        self.tp_size = tp_size
+        self.dp_size = dp_size
+        # Self-consistency: sample k programs per question and majority-vote on the
+        # executed value. k=1 preserves the original single greedy pass.
+        self.self_consistency_k = self_consistency_k
+        self.self_consistency_temp = self_consistency_temp
 
         self._llm = None
         self._tokenizer = None
@@ -97,6 +107,8 @@ class QwenInference:
             context_length=self.max_model_len,
             trust_remote_code=True,
             dtype="bfloat16",
+            tp_size=self.tp_size,
+            dp_size=self.dp_size,
         )
 
         # Load tokenizer separately for apply_chat_template / count_tokens.
@@ -113,27 +125,37 @@ class QwenInference:
     # Core inference
     # ------------------------------------------------------------------
 
-    def generate_batch(self, prompts: list[str], cot_format: bool = False) -> list[GenerationResult]:
+    def generate_batch(
+        self,
+        prompts: list[str],
+        cot_format: bool = False,
+        temperature_override: Optional[float] = None,
+    ) -> list[GenerationResult]:
         """
         Run generation for a list of already-formatted prompt strings.
 
         SGLang handles batching and scheduling internally — pass all prompts
         at once for maximum throughput.
+
+        temperature_override: when set, forces this sampling temperature instead
+        of self.temperature (used by self-consistency to sample diverse programs).
         """
         if self._llm is None:
             raise RuntimeError("Call load() before generate_batch().")
 
-        if self.temperature > 0.0:
+        effective_temp = self.temperature if temperature_override is None else temperature_override
+
+        if effective_temp > 0.0:
             if cot_format:
                 # Thinking mode for precise coding tasks (e.g. CoT Program Generation)
-                temp = 0.6 if self.temperature == 1.0 or self.temperature == 0.7 else self.temperature
+                temp = 0.6 if effective_temp == 1.0 or effective_temp == 0.7 else effective_temp
                 t_p = 0.95
                 t_k = 20
                 m_p = 0.0
                 p_p = 0.0
             else:
                 # Instruct (or non-thinking) mode for reasoning tasks
-                temp = self.temperature
+                temp = effective_temp
                 t_p = 0.95
                 t_k = 20
                 m_p = 0.0

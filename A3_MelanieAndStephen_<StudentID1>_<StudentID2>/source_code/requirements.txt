@@ -9,6 +9,14 @@ sentence-transformers>=2.7.0
 scipy>=1.12.0
 tqdm>=4.66.0
 
+# Fine-tuning / Phase 3 GPU dependencies used by train_lora.py and merge_lora.py.
+# Install these only in a CUDA-capable environment or inside the provided Modal/ARC image.
+torch
+transformers
+accelerate
+peft
+bitsandbytes
+
 # Modal-only inference stack:
 # Do not install these in the local .venv for the normal cloud workflow.
 # run_modal.py builds from lmsysorg/sglang:v0.5.13, which provides SGLang,

@@ -17,7 +17,7 @@ from typing import Any, Optional
 from datasets import Dataset
 from tqdm import tqdm
 
-from src.model import QwenInference, extract_answer
+from src.model import QwenInference, GenerationResult, extract_answer
 from src.strategy import CoTFormat, FewShotExample, Strategy
 
 logger = logging.getLogger(__name__)
@@ -287,6 +287,48 @@ def build_prompt(
 
 
 # ------------------------------------------------------------------
+# Self-consistency voting
+# ------------------------------------------------------------------
+
+def _self_consistency_vote(group: list[GenerationResult], table: list[list[str]]) -> GenerationResult:
+    """
+    Majority-vote self-consistency: given k sampled generations for one question,
+    execute each candidate program and return the generation whose executed value
+    is most common. Falls back to the first sample if none are executable.
+
+    Token counts stay on the per-question (single-sample) scale so downstream
+    token/limit checks (smoke test, reflector truncation warning) are unaffected.
+    """
+    from collections import Counter
+    from src.evaluator import evaluate_program
+
+    if not group:
+        return GenerationResult(raw_output="", predicted_answer=None, input_tokens=0, output_tokens=0)
+
+    valued: list[tuple[float, GenerationResult]] = []
+    for g in group:
+        if not g.predicted_answer:
+            continue
+        try:
+            val = evaluate_program(g.predicted_answer, table)
+        except Exception:
+            continue
+        if val is None:
+            continue
+        valued.append((round(float(val), 4), g))
+
+    if not valued:
+        return group[0]
+
+    counts = Counter(key for key, _ in valued)
+    winner_key, _ = counts.most_common(1)[0]
+    for key, g in valued:
+        if key == winner_key:
+            return g
+    return group[0]
+
+
+# ------------------------------------------------------------------
 # Main evaluation function
 # ------------------------------------------------------------------
 
@@ -347,7 +389,24 @@ def evaluate(
                 }
             )
 
-    generation_results = model.generate_batch(prompts, cot_format=enable_thinking) if prompts else []
+    sc_k = int(getattr(model, "self_consistency_k", 1) or 1)
+    if prompts and sc_k > 1:
+        sc_temp = float(getattr(model, "self_consistency_temp", 0.6) or 0.6)
+        logger.info("Self-consistency active: k=%d samples/question, temp=%.2f.", sc_k, sc_temp)
+        expanded_prompts: list[str] = []
+        for p in prompts:
+            expanded_prompts.extend([p] * sc_k)
+        raw_gen = model.generate_batch(
+            expanded_prompts, cot_format=enable_thinking, temperature_override=sc_temp
+        )
+        generation_results = [
+            _self_consistency_vote(raw_gen[i * sc_k:(i + 1) * sc_k], eval_items[i]["table"])
+            for i in range(len(prompts))
+        ]
+    elif prompts:
+        generation_results = model.generate_batch(prompts, cot_format=enable_thinking)
+    else:
+        generation_results = []
 
     per_question: list[QuestionResult] = []
     correct_by_type: dict[str, int] = {}

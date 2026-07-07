@@ -14,21 +14,22 @@ Assignment 03 by the named team members.
 
 ## Declaration
 
-- We did not use hidden test labels.
-- We did not manually label Kaggle test rows.
-- We did not retrieve, reconstruct, or infer hidden answers from external
-  sources, filenames, metadata, source documents, videos, transcripts, or leaks.
-- Kaggle submissions were generated from our implemented EvoAgent pipeline,
-  ARC GPU inference runs, deterministic CSV hybrid rules, and documented
-  post-processing experiments.
-- All final choices and rejected experiments are documented in
-  `docs/PHASE3_EXPERIMENT_LOG.md`.
-- No Hugging Face token, Kaggle token, private key, model weight, cache, or
-  secret is intentionally included in this package.
+We confirm that our team did not retrieve, reconstruct, manually label, or share
+answers for specific competition test samples. We did not use matched
+transcripts, subtitles, source documents, metadata, another team's predictions,
+or leaderboard probing to obtain test labels. All external and synthetic data
+used by our system is disclosed in the report.
+
+Kaggle submissions were generated from our implemented EvoAgent pipeline, ARC GPU
+inference runs, fine-tuned model inference, documented API model inference over
+assignment-provided context, deterministic CSV hybrid rules, and documented
+post-processing/ensemble experiments. No Hugging Face token, Kaggle token,
+private key, model weight, cache, or secret is intentionally included in this
+package.
 
 ## Signatures
 
-- Melanie: TBD
-- Nguyen Phan Nguyen - Stephen: TBD
+- Melanie: Melanie
+- Nguyen Phan Nguyen - Stephen: Nguyen Phan Nguyen - Stephen
 
-Date: 2026-06-29
+Date: 2026-07-07

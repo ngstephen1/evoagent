@@ -136,6 +136,30 @@ def parse_args() -> argparse.Namespace:
         default=0.90,
         help="Fraction of GPU memory to use for SGLang.",
     )
+    parser.add_argument(
+        "--tp-size",
+        type=int,
+        default=1,
+        help="Tensor-parallel size: number of GPUs to shard one model across (use for models too big for one GPU).",
+    )
+    parser.add_argument(
+        "--dp-size",
+        type=int,
+        default=1,
+        help="Data-parallel size: number of model replicas across GPUs for higher throughput (recommended for small models that fit on one GPU).",
+    )
+    parser.add_argument(
+        "--self-consistency-k",
+        type=int,
+        default=1,
+        help="Self-consistency: sample K programs per question and majority-vote on the executed value. 1 = single greedy pass (default).",
+    )
+    parser.add_argument(
+        "--self-consistency-temp",
+        type=float,
+        default=0.6,
+        help="Sampling temperature used when --self-consistency-k > 1.",
+    )
 
     # Always-From-Original (AFO) Principle
     parser.add_argument(
@@ -261,6 +285,10 @@ def main() -> None:
         use_4bit=not args.no_4bit,
         gpu_memory_utilization=args.gpu_memory_utilization,
         max_model_len=args.max_model_len,
+        tp_size=args.tp_size,
+        dp_size=args.dp_size,
+        self_consistency_k=args.self_consistency_k,
+        self_consistency_temp=args.self_consistency_temp,
     )
     model.load()
 
