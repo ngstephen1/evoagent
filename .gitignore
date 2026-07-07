@@ -59,6 +59,13 @@ assignment03/hf_cache/
 *.zip
 *.7z
 
+# Local-only high-score Kaggle artifacts
+.local_protected_csv/
+A3_MelanieAndStephen_<StudentID1>_<StudentID2>/kaggle/final_submission.csv
+A3_MelanieAndStephen_<StudentID1>_<StudentID2>/kaggle/submission_ensemble_api3.csv
+A3_MelanieAndStephen_<StudentID1>_<StudentID2>/kaggle/submission_ft_qwen3_8b_rs.csv
+A3_MelanieAndStephen_<StudentID1>_<StudentID2>/evidence/prediction_artifacts/*.csv
+
 # Experiment trackers and OS/editor files
 wandb/
 .DS_Store
