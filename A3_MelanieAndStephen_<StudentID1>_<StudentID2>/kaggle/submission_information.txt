@@ -9,13 +9,19 @@ Team:
   - Kaggle ID: nguynphannguyn
 
 Primary final Kaggle file:
-- kaggle/final_submission.csv
+- kaggle/submission_ft_qwen3_8b_rs.csv  (rejection-sampled / STaR Qwen3-8B, greedy)
 
 Source artifact:
-- assignment03/runs/kaggle_hybrid_retry_run009_lite_safe/submission_checked.csv
+- assignment03: phase3_rejection_sample.py samples the fine-tuned Qwen3-8B on train,
+  keeps execution-verified programs, combines with gold; train_lora.py + merge_lora.py
+  re-fine-tune on the augmented set; inference via submit.py + strategies/ft_strategy.json.
 
 Primary public score:
-- 0.65789
+- 0.74696
+
+Hedges / private-leaderboard alternates:
+- kaggle/submission_ft_merged.csv (0.72874, FT + broken-row fallback merge)
+- kaggle/submission_ft_qwen3_8b.csv (0.72267, plain fine-tuned Qwen3-8B)
 
 Final private score/rank:
 - TBD after Kaggle private leaderboard is released.
