@@ -128,8 +128,10 @@ python3 graders/grade_stage4_harness.py
 | Kaggle Run 003 | Submitted | Previous best: hybrid Run001 fallback to iter003 nonzero, public score `0.64574`. |
 | Kaggle Run 005 | Submitted | Conservative numeric post-processing scored `0.64170`; kept as an ablation, not current best. |
 | Kaggle Run 008 Filtered | Submitted | Previous best: targeted retry over Run003 zero rows with `agreement_count >= 2`, public score `0.65587`. |
-| Kaggle Run 009-Lite Safe | Submitted | Current best: filtered targeted retry over Run008 suspicious rows, public score `0.65789`, private score pending. |
+| Kaggle Run 009-Lite Safe | Submitted | Stephen's previous best: filtered targeted retry over Run008 suspicious rows, public score `0.65789`. |
 | Kaggle Run 011 GPT-OSS | Feasibility only | `openai/gpt-oss-120b` loads on `1x A100 80GB` through SGLang; adapter smoke works, not submitted. |
+| Team FT Qwen3-8B RS | Submitted | Best fully self-hosted alternate: `submission_ft_qwen3_8b_rs.csv`, public score `0.74696`. |
+| Team API3 Ensemble | Submitted | Current shared-team best: `submission_ensemble_api3.csv`, public score `0.80161`. |
 
 ## Proof Generation
 

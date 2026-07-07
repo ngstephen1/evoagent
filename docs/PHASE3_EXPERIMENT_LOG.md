@@ -6,19 +6,33 @@ and enough reproduction detail to audit the submission later.
 
 ## Current Phase 3 Status
 
-The team has reopened Phase 3 experimentation after Melanie's ensemble branch
-produced a stronger shared score. The current team-best public submission is
-`submission_ensemble_v2.csv` at `0.69838`. Stephen's best independent
-GPT-OSS-filtered submission is Run 012 safe at `0.66194`.
+The team has reopened Phase 3 experimentation after Melanie's branch produced
+stronger shared scores. The current team-best public submission is
+`submission_ensemble_api3.csv` at `0.80161`. It supersedes the fine-tuned
+Qwen3-8B rejection-sampled submission (`0.74696`) and should be treated as the
+default final candidate unless a later validated submission beats it.
 
-The next active direction is Run 013: use the team-best `0.69838` ensemble as
-the base and apply GPT-OSS 120B only as a narrow, auditable correction layer.
+Stephen's best independent GPT-OSS-filtered submission is Run 012 safe at
+`0.66194`; Run 013 applied GPT-OSS zero fixes to the older team ensemble and
+scored `0.69635`.
+
+The next active direction is packaging and validation around the `0.80161`
+API3 ensemble. If more experimentation is attempted, use the API3 file as the
+base for analysis; keep the `0.74696` RS file as the strongest fully self-hosted
+alternate.
 
 Final Kaggle candidates:
 
 | Role | Run | File | Public Score | Decision |
 |---|---|---|---:|---|
-| Team current best | Team ensemble v2 | `submission_ensemble_v2.csv` / target local path `assignment03/runs/team_melanie_ensemble_v2/submission_checked.csv` | 0.69838 | Use as the new base for any shared-team improvement. |
+| Team current best | API 3-way ensemble | `submission_ensemble_api3.csv` / local path `assignment03/runs/team_melanie_ensemble_api3/submission_checked.csv` | 0.80161 | Current final candidate; validates that the pipeline can clear 80%. |
+| Best self-hosted alternate | Fine-tuned Qwen3-8B rejection-sampled | `submission_ft_qwen3_8b_rs.csv` / local path `assignment03/runs/team_melanie_ft_qwen3_8b_rs/submission_checked.csv` | 0.74696 | Strongest <=9B self-hosted alternate and fallback if API use is disallowed. |
+| Team fine-tuned merged | Fine-tuned merged | `submission_ft_merged.csv` / local path `assignment03/runs/team_melanie_ft_merged/submission_checked.csv` | 0.72874 | Strong alternate, but superseded by RS. |
+| Team fine-tuned Qwen3-8B | Fine-tuned Qwen3-8B | `submission_ft_qwen3_8b.csv` / local path `assignment03/runs/team_melanie_ft_qwen3_8b/submission_checked.csv` | 0.72267 | Strong fine-tuned baseline, superseded by RS. |
+| Team fine-tuned Qwen2.5-7B | Fine-tuned Qwen2.5-7B | `submission_ft_qwen25_7b.csv` / local path `assignment03/runs/team_melanie_ft_qwen25_7b/submission_checked.csv` | 0.71255 | Useful diversity source, superseded by Qwen3-8B RS. |
+| Previous team best | Team ensemble v4 | `submission_ensemble_v4.csv` / local path `assignment03/runs/team_melanie_ensemble_v4/submission_checked.csv` | 0.70242 | Superseded by fine-tuned submissions. |
+| Previous team best | Team ensemble v2 | `submission_ensemble_v2.csv` | 0.69838 | Superseded by v4. |
+| GPT-OSS on older team ensemble | Run 013 zero fixes | `assignment03/runs/kaggle_hybrid_run013_gptoss_on_team_v2_zero_sign/submission_checked.csv` | 0.69635 | Improved the older `0.69433` ensemble but did not beat v2/v4. |
 | Stephen previous best | Run 012 GPT-OSS safe | `assignment03/runs/kaggle_hybrid_run012_gptoss_evidence_30_safe/submission_checked.csv` | 0.66194 | Useful GPT-OSS evidence method, but no longer the team base. |
 | Previous Stephen primary | Run 009-lite safe | `assignment03/runs/kaggle_hybrid_retry_run009_lite_safe/submission_checked.csv` | 0.65789 | Superseded by team ensemble v2 for shared-team work. |
 | Alternate / previous best | Run 008 filtered | `assignment03/runs/kaggle_hybrid_retry_run008_agree2/submission_checked.csv` | 0.65587 | Keep as the strongest previous targeted-retry candidate. |
@@ -28,29 +42,46 @@ Final Kaggle candidates:
 Summary interpretation: hybrid fallback ensembling created the first major
 gain, and targeted retry over remaining zero rows created the next gain. Broad
 numeric post-processing hurt public score, while weak-confidence retry outputs
-needed filtering. GPT-OSS 120B is feasible on 1x A100 with SGLang and can make
-useful evidence-to-DSL corrections, but the best next move is to apply those
-corrections on top of the stronger shared team ensemble rather than continuing
-from the older `0.65789` base.
+needed filtering. Melanie's fine-tuning plus rejection sampling produced the
+largest self-hosted gain, reaching `0.74696`. The API3 ensemble then combined
+the RS Qwen3-8B model with Gemini 2.5 Flash and DeepSeek-V3, reaching `0.80161`.
+GPT-OSS 120B is feasible on 1x A100 with SGLang, but additional GPT-OSS patching
+is now lower priority than preserving and documenting the API3 result.
 
-## Team Ensemble Results
+## Team Fine-Tuning, API, and Ensemble Results
 
 These submissions came from the shared team work on Melanie's separate branch.
-They are not blindly merged into this branch; the current plan is to copy the
-best shared submission CSV as an input artifact and preserve reproducibility
-through validation and documentation.
+They are not blindly merged into this branch. As of the latest inspection,
+`origin/melanie-evoagent-arc` commit `714dc9d` contains the fine-tuned,
+rejection-sampled, and API3 submissions. The relevant CSVs have been copied
+locally to `assignment03/runs/team_melanie_*` directories and validated before
+use. The stale
+`submission_information.txt` in that scaffold still describes Run009 as final,
+so the CSV itself and Kaggle score history are the source of truth.
 
 | Run/File | Public Score | Decision |
 |---|---:|---|
 | `submission_ensemble.csv` | 0.69433 | Strong team baseline. |
-| `submission_ensemble_v2.csv` | 0.69838 | Current team-best base for Run 013. |
+| `submission_ensemble_v2.csv` | 0.69838 | Previous team-best baseline. |
 | `submission_ensemble_v3.csv` | 0.68218 | Lower than v2; do not use as base. |
+| `submission_ensemble_v4.csv` | 0.70242 | Previous team-best base; superseded. |
+| `submission_ft_qwen25_7b.csv` | 0.71255 | Fine-tuned 7B result; useful diversity source. |
+| `submission_ft_qwen3_8b.csv` | 0.72267 | Fine-tuned Qwen3-8B result. |
+| `submission_ft_merged.csv` | 0.72874 | Merged fine-tuned result. |
+| `submission_ft_qwen3_8b_rs.csv` | 0.74696 | Best self-hosted <=9B alternate. |
+| `submission_ensemble_api3.csv` | 0.80161 | Current team-best final candidate; API3 ensemble. |
 
 Required local placement for the current team-best file:
 
 ```text
-assignment03/runs/team_melanie_ensemble_v2/submission_checked.csv
+assignment03/runs/team_melanie_ensemble_api3/submission_checked.csv
 ```
+
+Do not package or build on the API3 result until that exact CSV is present and
+validated locally.
+
+Current local validation status: present and valid at
+`assignment03/runs/team_melanie_ensemble_api3/submission_checked.csv`.
 
 Validation requirements before using it as a base:
 
@@ -60,30 +91,72 @@ Validation requirements before using it as a base:
 - No duplicate IDs.
 - No blank, missing, non-numeric, or non-finite predictions.
 
-## Run 013 - Planned GPT-OSS Corrections on Team Ensemble V2
+## Run 013 - GPT-OSS Zero Fixes on Older Team Ensemble
 
 | Field | Value |
 |---|---|
-| Status | Planned / not submitted yet |
-| Base file | `assignment03/runs/team_melanie_ensemble_v2/submission_checked.csv` |
-| Base score | 0.69838 |
+| Status | Submitted |
+| Base file | `assignment03/runs/team_melanie_ensemble/submission_checked.csv` |
+| Base score | 0.69433 |
 | Solver | GPT-OSS 120B evidence-to-DSL through SGLang |
-| Target count | Start with 60 suspicious rows |
-| Output prefix | `assignment03/runs/kaggle_run013_gptoss_on_team_v2/` |
+| Target count | 60 suspicious rows |
+| Submitted variant | `zero_sign` |
+| Submitted file | `assignment03/runs/kaggle_hybrid_run013_gptoss_on_team_v2_zero_sign/submission_checked.csv` |
+| Public score | 0.69635 |
+| Decision | Useful improvement over the older `0.69433` ensemble, but not a final candidate because v4 scored `0.70242`. |
+
+Run 013 showed that GPT-OSS zero-row corrections can help, but the submitted
+2-change variant did not beat the stronger v2/v4 team ensembles.
+
+## Run 014 - Superseded GPT-OSS Corrections on Team Ensemble V4
+
+| Field | Value |
+|---|---|
+| Status | Superseded / do not prioritize |
+| Base file | `assignment03/runs/team_melanie_ensemble_v4/submission_checked.csv` |
+| Base score | 0.70242 |
+| Solver | GPT-OSS 120B evidence-to-DSL through SGLang |
+| Target count | Start with 100 suspicious rows |
+| Output prefix | `assignment03/runs/kaggle_run014_gptoss_on_team_v4/` |
 | Variant builder | `assignment03/phase3_build_run013_variants.py` |
+| Command runbook | `assignment03/docs/RUN014_GPTOSS_V4.md` |
 
-Run 013 should build three conservative variants from the same GPT-OSS retry
-details:
+Run 014 was the planned next step before Melanie's fine-tuned submissions
+arrived. It is now superseded by Run 015. Keep this plan only as a fallback if
+the fine-tuned RS artifact becomes unusable.
 
-| Variant | Output directory | Rule |
-|---|---|---|
-| A | `runs/kaggle_hybrid_run013_gptoss_on_team_v2_zero_only/` | Replace only current-base zero rows. |
-| B | `runs/kaggle_hybrid_run013_gptoss_on_team_v2_zero_sign/` | Variant A plus negative-to-positive sign fixes for absolute-change wording. |
-| C | `runs/kaggle_hybrid_run013_gptoss_on_team_v2_high_conf/` | Variant B plus high-confidence nonzero fixes with strong suspicious-row signals. |
+## Run 015 - Planned GPT-OSS Corrections on Fine-Tuned Qwen3-8B RS
 
-Submit the safest validated variant first, preferably A or B if it changes
-only a few auditable rows. Stop if the first team-base GPT-OSS variant reduces
-the public score.
+| Field | Value |
+|---|---|
+| Status | Superseded / do not prioritize |
+| Base file | `assignment03/runs/team_melanie_ft_qwen3_8b_rs/submission_checked.csv` |
+| Base score | 0.74696 |
+| Solver | GPT-OSS 120B evidence-to-DSL through SGLang |
+| Target count | Start with 80-120 suspicious rows |
+| Output prefix | `assignment03/runs/kaggle_run015_gptoss_on_ft_qwen3_8b_rs/` |
+| Variant builder | `assignment03/phase3_build_run013_variants.py` |
+| Recommended GPU request | Superseded by API3; request GPU only for self-hosted follow-up training. |
+
+Run 015 was planned before the API3 ensemble result arrived. It remains a
+fallback plan only if API-based submissions are disallowed and the team wants to
+improve the fully self-hosted `0.74696` alternate.
+
+## Run 016 - API3 Ensemble Current Best
+
+| Field | Value |
+|---|---|
+| Status | Submitted / current best |
+| File | `assignment03/runs/team_melanie_ensemble_api3/submission_checked.csv` |
+| Kaggle file name | `submission_ensemble_api3.csv` |
+| Public score | 0.80161 |
+| Method | Three-way ensemble: RS Qwen3-8B + Gemini 2.5 Flash + DeepSeek-V3, priority/tie-breaker toward RS Qwen3-8B |
+| Local validation | 494 rows, exact ID order, no duplicates, all numeric |
+| Decision | Primary final public-leaderboard candidate. Keep `submission_ft_qwen3_8b_rs.csv` as the best self-hosted alternate. |
+
+Important packaging note: `final_submission.csv` on Melanie's scaffold does not
+match `submission_ensemble_api3.csv` by hash, so copy the API3 CSV explicitly
+when preparing the final package.
 
 No external lookup is allowed: no web search, source PDF lookup, IDs, URLs,
 page metadata, or hidden-label inference for answer recovery.

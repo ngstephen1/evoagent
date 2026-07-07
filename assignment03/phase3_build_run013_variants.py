@@ -25,6 +25,7 @@ DEFAULT_RETRY_DETAILS = Path("runs/kaggle_run013_gptoss_on_team_v2/retry_details
 DEFAULT_TARGET_ROWS = Path("runs/kaggle_run013_gptoss_on_team_v2/target_rows.csv")
 DEFAULT_TEST = Path("data/test.json")
 DEFAULT_OUTPUT_ROOT = Path("runs")
+DEFAULT_OUTPUT_PREFIX = "kaggle_hybrid_run013_gptoss_on_team_v2"
 OUTPUT_COLUMNS = ["id", "Usage", "predicted_value"]
 CHANGE_COLUMNS = [
     "id",
@@ -67,6 +68,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--target-rows", type=Path, default=DEFAULT_TARGET_ROWS)
     parser.add_argument("--test", type=Path, default=DEFAULT_TEST)
     parser.add_argument("--output-root", type=Path, default=DEFAULT_OUTPUT_ROOT)
+    parser.add_argument("--output-prefix", default=DEFAULT_OUTPUT_PREFIX)
     parser.add_argument("--min-safe-changes", type=int, default=1)
     return parser.parse_args()
 
@@ -361,9 +363,9 @@ def main() -> None:
     expected_ids = load_test_ids(args.test)
 
     variants = {
-        "variant_a_zero_only": args.output_root / "kaggle_hybrid_run013_gptoss_on_team_v2_zero_only",
-        "variant_b_zero_sign": args.output_root / "kaggle_hybrid_run013_gptoss_on_team_v2_zero_sign",
-        "variant_c_high_conf": args.output_root / "kaggle_hybrid_run013_gptoss_on_team_v2_high_conf",
+        "variant_a_zero_only": args.output_root / f"{args.output_prefix}_zero_only",
+        "variant_b_zero_sign": args.output_root / f"{args.output_prefix}_zero_sign",
+        "variant_c_high_conf": args.output_root / f"{args.output_prefix}_high_conf",
     }
     summaries = []
     for variant, output_dir in variants.items():
@@ -379,7 +381,7 @@ def main() -> None:
         summaries.append(summary)
         print(json.dumps(summary, ensure_ascii=False, indent=2))
 
-    all_summary_path = args.output_root / "kaggle_hybrid_run013_gptoss_on_team_v2_variants_summary.json"
+    all_summary_path = args.output_root / f"{args.output_prefix}_variants_summary.json"
     all_summary_path.write_text(json.dumps(summaries, ensure_ascii=False, indent=2), encoding="utf-8")
     print(f"variants_summary={all_summary_path}")
 

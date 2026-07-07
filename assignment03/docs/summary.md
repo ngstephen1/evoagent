@@ -11,7 +11,7 @@ The project has three practical tracks:
 | Track | Goal | Current Status |
 |---|---|---|
 | Milestone 1 | Implement EvoAgent stages and generate proof artifacts. | Complete and locally verified. |
-| Milestone 2 / Phase 3 | Improve Kaggle public score with generated predictions. | Shared team best public score is `0.69838`; Stephen's best independent GPT-OSS-filtered run is `0.66194`. |
+| Milestone 2 / Phase 3 | Improve Kaggle public score with generated predictions. | Shared team best public score is `0.80161`; Stephen's best independent GPT-OSS-filtered run is `0.66194`. |
 | ThinkFlic final package | Prepare final source, evidence, report, integrity declaration, and final Kaggle file. | Scaffold exists, final metadata still pending. |
 
 Team:
@@ -23,11 +23,13 @@ Team:
 
 Current shared-team best candidate:
 
-- Best public score: `0.69838`
-- Primary shared-team run: Melanie ensemble v2
-- Source file name: `submission_ensemble_v2.csv`
-- Target local path for Stephen's Run013 work: `assignment03/runs/team_melanie_ensemble_v2/submission_checked.csv`
-- Method: team ensemble from Melanie's separate branch, used as the new base for shared-team improvements
+- Best public score: `0.80161`
+- Primary shared-team run: Melanie API3 ensemble
+- Source file name: `submission_ensemble_api3.csv`
+- Target local/final path: `assignment03/runs/team_melanie_ensemble_api3/submission_checked.csv`
+- Method: three-way ensemble of RS Qwen3-8B, Gemini 2.5 Flash, and DeepSeek-V3, using assignment-provided context and deterministic voting
+- Artifact note: `submission_ensemble_api3.csv` is present on `origin/melanie-evoagent-arc` commit `714dc9d`, copied locally, and validated directly. The scaffold metadata is stale, so use the CSV and Kaggle score history as source of truth.
+- Best fully self-hosted alternate: `submission_ft_qwen3_8b_rs.csv`, public score `0.74696`.
 
 Stephen's current GPT-OSS line:
 
@@ -35,7 +37,7 @@ Stephen's current GPT-OSS line:
 - Run: Run012 GPT-OSS safe 3-change hybrid
 - File: `assignment03/runs/kaggle_hybrid_run012_gptoss_evidence_30_safe/submission_checked.csv`
 - Method: GPT-OSS 120B evidence-to-DSL corrections filtered down to three auditable changes on top of Run009-lite safe
-- Decision: useful method, but future GPT-OSS work should start from the stronger team ensemble v2 base
+- Decision: useful method, but future GPT-OSS work is now secondary to packaging the stronger API3 and self-hosted RS results.
 
 ## 2. Implementation Summary
 
@@ -169,14 +171,21 @@ Security warning:
 | Run006 | Context-expanded rerun of best strategy with max context 32768 | Not submitted | `assignment03/runs/kaggle_run006_iterbest_ctx32768/submission_checked.csv` | Worse zero count than Run001; not useful standalone. |
 | Run007 | Tiny Run003 + Run006 fallback | Not submitted | `assignment03/runs/kaggle_hybrid_003_006/submission_checked.csv` | Valid, but only changed 2 rows and one conflicted with Run004; medium-risk private-leaderboard gamble; not recommended for final. |
 | Run008 filtered | Targeted retry over Run003 zero rows, keeping only `agreement_count >= 2` recoveries | 0.65587 | `assignment03/runs/kaggle_hybrid_retry_run008_agree2/submission_checked.csv` | Previous best. Recovered 6 higher-confidence zero/fallback rows from Run003. |
-| Run009-lite safe | Suspicious-row targeted retry over Run008 filtered, excluding unchanged rows and new extreme outliers | 0.65789 | `assignment03/runs/kaggle_hybrid_retry_run009_lite_safe/submission_checked.csv` | Current primary final. Kept 3 auditable changes and improved public score without increasing extreme count. |
+| Run009-lite safe | Suspicious-row targeted retry over Run008 filtered, excluding unchanged rows and new extreme outliers | 0.65789 | `assignment03/runs/kaggle_hybrid_retry_run009_lite_safe/submission_checked.csv` | Stephen's previous best before GPT-OSS and shared-team fine-tuning. |
 | Run011 GPT-OSS smoke | SGLang-served `openai/gpt-oss-120b` feasibility and adapter smoke | Not submitted | `assignment03/runs/kaggle_run011_model_smoke/` | Feasibility only. 120B loaded on 1x A100 and produced parseable DSL, but the first 10-row smoke changed only one row. |
 | Run012 GPT-OSS safe | GPT-OSS 120B evidence-to-DSL over 30 suspicious rows, filtered to 3 safe changes | 0.66194 | `assignment03/runs/kaggle_hybrid_run012_gptoss_evidence_30_safe/submission_checked.csv` | Improved Stephen's line, but still below the shared team ensemble. |
 | Team ensemble | Melanie shared-team ensemble | 0.69433 | `submission_ensemble.csv` | Stronger than Stephen's Run012 line. |
-| Team ensemble v2 | Melanie shared-team ensemble v2 | 0.69838 | `submission_ensemble_v2.csv` | Current shared-team best and new base for Run013. |
+| Team ensemble v2 | Melanie shared-team ensemble v2 | 0.69838 | `submission_ensemble_v2.csv` | Previous shared-team best. |
 | Team ensemble v3 | Melanie shared-team ensemble v3 | 0.68218 | `submission_ensemble_v3.csv` | Lower than v2; do not use as base. |
+| Run013 GPT-OSS zero fixes | GPT-OSS 120B zero/sign fixes on older team ensemble | 0.69635 | `assignment03/runs/kaggle_hybrid_run013_gptoss_on_team_v2_zero_sign/submission_checked.csv` | Improved the older `0.69433` team ensemble but did not beat later team submissions. |
+| Team ensemble v4 | Melanie shared-team ensemble v4 | 0.70242 | `submission_ensemble_v4.csv` | Previous shared-team best; superseded by fine-tuned submissions. |
+| Team FT Qwen2.5-7B | Melanie fine-tuned Qwen2.5-7B | 0.71255 | `submission_ft_qwen25_7b.csv` | Fine-tuned model result and possible diversity source. |
+| Team FT Qwen3-8B | Melanie fine-tuned Qwen3-8B | 0.72267 | `submission_ft_qwen3_8b.csv` | Strong fine-tuned baseline. |
+| Team FT merged | Melanie merged fine-tuned submission | 0.72874 | `submission_ft_merged.csv` | Strong alternate; superseded by rejection sampling. |
+| Team FT Qwen3-8B RS | Melanie fine-tuned Qwen3-8B with rejection sampling | 0.74696 | `submission_ft_qwen3_8b_rs.csv` | Best self-hosted alternate; superseded by API3 for public score. |
+| Team API3 ensemble | Melanie API3 ensemble | 0.80161 | `submission_ensemble_api3.csv` | Current shared-team best and primary final candidate. |
 
-### Why Run009-Lite Safe Is Best So Far
+### Why Run009-Lite Was the First Stable Improvement
 
 Run001 had the strongest overall behavior, but it often failed by producing malformed, looping, or invalid programs that cleaned to `0.0`. Run002 was worse as a full strategy, but it often produced executable programs where Run001 failed. Run003 preserved all nonzero Run001 predictions and used Run002 only as a fallback source for Run001 zeros.
 
@@ -215,20 +224,25 @@ Run009-lite safe: 0.65789
 - Bigger context failed: Run006 had more zero predictions than Run001.
 - Extra fallback rows plateaued when they came from similar submissions: Run004 tied Run003, and Run007 was not worth submitting.
 - Targeted retry worked only after confidence filtering; suspicious or extreme replacements were excluded from the submitted Run008 and Run009-safe files.
-- GPT-OSS 120B is feasible and useful, but applying it to Stephen's older `0.65789` base is no longer the highest-leverage path now that the shared team has a `0.69838` ensemble.
+- GPT-OSS 120B is feasible and useful, but applying it to Stephen's older `0.65789` base is no longer the highest-leverage path now that the shared team has a `0.80161` API3 ensemble and a `0.74696` self-hosted alternate.
 
-### Current Run013 Direction
+### Current Finalization Direction
 
-Run013 should use `submission_ensemble_v2.csv` as the base, placed at
-`assignment03/runs/team_melanie_ensemble_v2/submission_checked.csv`, then run
-GPT-OSS evidence-to-DSL only over a small suspicious set. The new helper
-`assignment03/phase3_build_run013_variants.py` builds three candidate variants:
+The current primary final should use `submission_ensemble_api3.csv`, placed at
+`assignment03/runs/team_melanie_ensemble_api3/submission_checked.csv`, and copied
+into the ThinkFlic package as `kaggle/final_submission.csv` after final
+validation. The self-hosted RS file should be retained as a documented alternate.
+
+The older Run015 GPT-OSS correction plan over RS is now a fallback only:
 
 - Variant A: zero-row fixes only.
 - Variant B: zero-row fixes plus conservative negative-to-positive absolute-change sign fixes.
 - Variant C: Variant B plus high-confidence nonzero fixes with strong suspicious signals.
 
 Submit only the safest validated variant after inspecting `changes.csv`.
+Concrete commands for the superseded Run015 plan remain in
+`assignment03/docs/RUN015_GPTOSS_FT_QWEN3_RS.md`. Do not run new correction
+experiments unless final packaging is already stable.
 
 ## 7. Important Lessons
 

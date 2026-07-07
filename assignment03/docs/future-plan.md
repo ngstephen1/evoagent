@@ -7,19 +7,29 @@ Hard boundaries:
 - Do not use hidden labels or infer test answers manually.
 - Do not commit secrets, HF tokens, Kaggle tokens, `.env` files, private keys, model weights, or caches.
 - Do not treat the public leaderboard as a tuning oracle through excessive submissions.
-- Keep the shared team-best `submission_ensemble_v2.csv` stable as the primary base unless a validated method clearly beats it.
+- Keep the shared team-best `submission_ensemble_api3.csv` stable as the primary base unless a validated method clearly beats it.
+- Keep `submission_ft_qwen3_8b_rs.csv` as the strongest fully self-hosted alternate.
 
 ## 1. Current Baseline and Plateau
 
-Current shared-team best public score: `0.69838`.
+Current shared-team best public score: `0.80161`.
 
 Current shared-team best submission:
 
-- Run: Melanie team ensemble v2
-- File name: `submission_ensemble_v2.csv`
-- Target local path for Stephen's next work: `assignment03/runs/team_melanie_ensemble_v2/submission_checked.csv`
-- Public score: `0.69838`
-- Method: team ensemble from Melanie's separate branch, used as the new shared-team base
+- Run: Melanie API3 ensemble
+- File name: `submission_ensemble_api3.csv`
+- Target local path for final packaging: `assignment03/runs/team_melanie_ensemble_api3/submission_checked.csv`
+- Public score: `0.80161`
+- Method: three-way ensemble of RS Qwen3-8B, Gemini 2.5 Flash, and DeepSeek-V3, using assignment-provided context and deterministic voting
+- Artifact status: the exact CSV is present on `origin/melanie-evoagent-arc` commit `714dc9d`, copied locally, and validated.
+
+Best non-API alternate:
+
+- Run: Melanie fine-tuned Qwen3-8B with rejection sampling
+- File name: `submission_ft_qwen3_8b_rs.csv`
+- Local path: `assignment03/runs/team_melanie_ft_qwen3_8b_rs/submission_checked.csv`
+- Public score: `0.74696`
+- Method: fine-tuned Qwen3-8B plus rejection-sampling pipeline from Melanie's branch
 
 Run003 worked because Run001 was the strongest single strategy but had many failure-like `0.0` predictions. Run002 was weaker globally, but it often produced executable programs for rows where Run001 failed. The hybrid kept Run001's nonzero predictions and used Run002 only as a fallback source.
 
@@ -36,15 +46,20 @@ retry helped:
   kept 3 auditable changes and improved public score to `0.65789`.
 - Run012 GPT-OSS safe used SGLang-served GPT-OSS 120B and a two-stage
   evidence-to-DSL pipeline to create a 3-change safe hybrid at `0.66194`.
-- Melanie's ensemble v2 then became the shared-team best at `0.69838`, so the
-  highest-leverage next experiment is to apply GPT-OSS corrections on top of
-  that stronger base rather than continuing from `0.65789`.
+- Melanie's ensemble v2 became the shared-team best at `0.69838`, ensemble v4
+  improved it to `0.70242`, fine-tuned Qwen3-8B reached `0.72267`, a merged
+  fine-tuned submission reached `0.72874`, rejection-sampled Qwen3-8B reached
+  `0.74696`, and the API3 ensemble reached `0.80161`. The highest-leverage
+  immediate action is now documentation, packaging, and final-candidate
+  validation rather than another small correction run.
+- Run013 GPT-OSS zero fixes improved the older `0.69433` team ensemble to
+  `0.69635`, but did not beat v2 or v4.
 
 The conclusion is that future gains need a stronger new signal beyond the
-current team ensemble. Simple fallback patching is mostly exhausted. The next
-improvement must recover a small number of high-confidence errors in the
-`0.69838` base, repair invalid programs, route examples to genuinely better
-specialists, or use better context/modeling under the assignment rules.
+current API3 base. Simple fallback patching is mostly exhausted. Further
+improvement beyond `0.80161` would require either a more diverse reproducible
+API voter/selector or closing the gap from the self-hosted side through more
+STaR/RLVR/fine-tuning work.
 
 ## 2. Improvement Options Summary Table
 
@@ -65,28 +80,26 @@ specialists, or use better context/modeling under the assignment rules.
 | Human-readable error taxonomy + automatic rule miner | Mine dev failures and propose safe targeted fixes. | Low to medium | Hard | Possible but uncertain | Low | 0-1 | 13 | Medium |
 | Private-leaderboard robustness strategy | Choose final candidates with lower overfit risk. | Low to medium | Medium | Realistic | Low | 0 | 14 | Medium |
 
-## 2.1 Immediate Run013 Plan
+## 2.1 Immediate Finalization Plan
 
-Run013 is the next practical path toward `>0.70`.
+The current practical plan is to stabilize `0.80161` as the primary final.
 
-- Base: `assignment03/runs/team_melanie_ensemble_v2/submission_checked.csv`
-  copied from `submission_ensemble_v2.csv`.
-- Model: GPT-OSS 120B served with SGLang on 1x A100.
-- Target count: start with 60 suspicious rows from the team-best base.
-- Solver: existing GPT-OSS evidence-to-DSL pipeline.
-- Builder: `assignment03/phase3_build_run013_variants.py`.
+- Primary base/final candidate:
+  `assignment03/runs/team_melanie_ensemble_api3/submission_checked.csv`
+  copied from `submission_ensemble_api3.csv`.
+- Validate the CSV, then copy it into the final ThinkFlic package as
+  `kaggle/final_submission.csv`.
+- Document API model identifiers, prompt/evaluator reuse, voting rule, and saved
+  prediction artifacts.
+- Retain `submission_ft_qwen3_8b_rs.csv` as the best self-hosted alternate in
+  case the final interpretation prefers no hosted API models.
 
-Build three variants from one GPT-OSS retry run:
+If attempting another improvement:
 
-| Variant | Rule | Risk |
-|---|---|---|
-| A | Replace only current-base zero rows. | Lowest |
-| B | Variant A plus sign fixes where the question asks for an absolute change and GPT-OSS returns `abs(old_value)`. | Low to medium |
-| C | Variant B plus high-confidence nonzero replacements with strong suspicious-row signals. | Medium |
-
-Submit only one validated variant at a time, starting with A or B if it changes
-at least one auditable row. Stop if the first team-base GPT-OSS variant scores
-below `0.69838`.
+- API-side ensembling/selection needs no A100 hours, only API budget and careful
+  submission discipline.
+- Self-hosted improvement needs GPU. Request `24` A100 hours for another serious
+  STaR/fine-tuning round, or `48` A100 hours for RLVR/GRPO-style experiments.
 
 ## 3. Detailed Option Plans
 
