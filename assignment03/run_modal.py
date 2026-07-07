@@ -497,7 +497,8 @@ train_image = (
     secrets=[modal.Secret.from_name("huggingface")],
     volumes={"/runs": volume},
 )
-def train_lora_fn(base_model: str = "Qwen/Qwen2.5-7B-Instruct", epochs: float = 2.0, tag: str = "qwen25_7b"):
+def train_lora_fn(base_model: str = "Qwen/Qwen2.5-7B-Instruct", epochs: float = 2.0,
+                  tag: str = "qwen25_7b", train_file: str = "data_sft/train_sft.jsonl"):
     """QLoRA SFT then merge -> full model dir on the volume for SGLang serving."""
     import os
     import subprocess
@@ -508,7 +509,7 @@ def train_lora_fn(base_model: str = "Qwen/Qwen2.5-7B-Instruct", epochs: float = 
     subprocess.run([
         "python", "train_lora.py",
         "--model", base_model,
-        "--train", "data_sft/train_sft.jsonl",
+        "--train", train_file,
         "--eval", "data_sft/eval_sft.jsonl",
         "--output-dir", adapter_dir,
         "--epochs", str(epochs),
@@ -524,11 +525,68 @@ def train_lora_fn(base_model: str = "Qwen/Qwen2.5-7B-Instruct", epochs: float = 
 
 
 @app.local_entrypoint()
-def finetune(base_model: str = "Qwen/Qwen2.5-7B-Instruct", epochs: float = 2.0, tag: str = "qwen25_7b"):
+def finetune(base_model: str = "Qwen/Qwen2.5-7B-Instruct", epochs: float = 2.0,
+             tag: str = "qwen25_7b", train_file: str = "data_sft/train_sft.jsonl"):
     print(f"Launching QLoRA fine-tune of {base_model} ({epochs} epochs) on Modal A100...")
-    train_lora_fn.remote(base_model, epochs, tag)
+    train_lora_fn.remote(base_model, epochs, tag, train_file)
     print("\nTraining + merge complete. Next — run inference with the fine-tuned model:")
     print(f"  modal run --detach run_modal.py::predict "
           f"--model /runs/lora_merged_{tag} --sc-k 1 --tag ft-{tag} "
           f"--strategy-path strategies/ft_strategy.json")
+
+
+# ======================================================================
+# Rejection sampling / STaR — sample the FT model on train, keep verified
+# programs, build an augmented dataset, then re-fine-tune on it.
+# ======================================================================
+
+@app.function(
+    image=image,               # SGLang inference image
+    gpu="A10G",
+    cpu=4,
+    memory=16384,
+    timeout=10800,
+    secrets=[modal.Secret.from_name("huggingface")],
+    volumes={"/runs": volume},
+)
+def run_rejection_sample(model: str, k: int = 8, temp: float = 0.8, max_per_q: int = 3,
+                         out: str = "/runs/rs/train_sft_rs.jsonl", limit: int = None):
+    """Sample the FT model on train, keep execution-verified programs -> augmented jsonl.
+    Also writes a combined dataset (original gold + verified) for re-training."""
+    import os
+    import subprocess
+    import json
+    os.chdir("/evoagent")
+    cmd = [
+        "python", "phase3_rejection_sample.py",
+        "--model", model, "--strategy-path", "strategies/ft_strategy.json",
+        "--k", str(k), "--temp", str(temp), "--max-per-q", str(max_per_q), "--out", out,
+    ]
+    if limit is not None:
+        cmd += ["--limit", str(limit)]
+    subprocess.run(cmd, check=True)
+
+    # Combine original gold SFT + verified samples for re-training.
+    combined = "/runs/rs/train_sft_combined.jsonl"
+    n = 0
+    with open(combined, "w", encoding="utf-8") as w:
+        for src in ("data_sft/train_sft.jsonl", out):
+            with open(src, encoding="utf-8") as f:
+                for line in f:
+                    if line.strip():
+                        w.write(line)
+                        n += 1
+    print(f"Combined dataset: {n} examples -> {combined}")
+    volume.commit()
+
+
+@app.local_entrypoint()
+def rejection_sample(model: str = "/runs/lora_merged_qwen3_8b", k: int = 8, temp: float = 0.8,
+                     max_per_q: int = 3, limit: int = None):
+    print(f"Rejection sampling from {model}: k={k}, temp={temp}...")
+    run_rejection_sample.remote(model, k, temp, max_per_q, "/runs/rs/train_sft_rs.jsonl", limit)
+    print("\nDone. Re-train on the augmented dataset with:")
+    print("  modal run --detach run_modal.py::finetune "
+          "--base-model Qwen/Qwen3-8B --epochs 2 --tag qwen3_8b_rs "
+          "--train-file /runs/rs/train_sft_combined.jsonl")
 
