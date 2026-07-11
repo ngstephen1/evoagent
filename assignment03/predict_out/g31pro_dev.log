@@ -1,0 +1,27 @@
+Solving 584 dev rows with gemini/gemini-3.1-pro-preview (concurrency 8)...
+  25/584
+  50/584
+  75/584
+  100/584
+  125/584
+  150/584
+  175/584
+  200/584
+  225/584
+  250/584
+  275/584
+  300/584
+  325/584
+  350/584
+  375/584
+  400/584
+  425/584
+  450/584
+  475/584
+  500/584
+  525/584
+  550/584
+  575/584
+
+DEV accuracy: 445/584 = 76.20%   (api-gemini-gemini-3.1-pro-preview)
+wrote predict_out/api-gemini-gemini-3.1-pro-preview_dev.csv

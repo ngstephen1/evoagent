@@ -9,19 +9,23 @@ Team:
   - Kaggle ID: nguynphannguyn
 
 Primary final Kaggle file:
-- kaggle/submission_ft_qwen3_8b_rs.csv  (rejection-sampled / STaR Qwen3-8B, greedy)
+- kaggle/submission_ensemble_api3.csv  (3-way vote: STaR Qwen3-8B + Gemini 2.5-flash
+  + DeepSeek-V3, ties -> STaR)
 
 Source artifact:
-- assignment03: phase3_rejection_sample.py samples the fine-tuned Qwen3-8B on train,
-  keeps execution-verified programs, combines with gold; train_lora.py + merge_lora.py
-  re-fine-tune on the augmented set; inference via submit.py + strategies/ft_strategy.json.
+- assignment03: phase3_api_solve.py generates Gemini/DeepSeek predictions (dev+test)
+  reusing the DSL prompt + evaluator; phase3_ensemble_vote.py majority-votes them with
+  the STaR model (kaggle/submission_ft_qwen3_8b_rs.csv). API models used per Phase-3
+  rules 2 & 3 (documented, reproducible pipeline). Model ids: gemini-2.5-flash, deepseek-chat.
 
 Primary public score:
-- 0.74696
+- 0.80161
 
-Hedges / private-leaderboard alternates:
-- kaggle/submission_ft_merged.csv (0.72874, FT + broken-row fallback merge)
-- kaggle/submission_ft_qwen3_8b.csv (0.72267, plain fine-tuned Qwen3-8B)
+Primary NON-API alternate (fully self-hosted, <=9B):
+- kaggle/submission_ft_qwen3_8b_rs.csv (0.74696, rejection-sampled/STaR Qwen3-8B)
+
+Further hedges:
+- kaggle/submission_ft_merged.csv (0.72874) ; kaggle/submission_ft_qwen3_8b.csv (0.72267)
 
 Final private score/rank:
 - TBD after Kaggle private leaderboard is released.

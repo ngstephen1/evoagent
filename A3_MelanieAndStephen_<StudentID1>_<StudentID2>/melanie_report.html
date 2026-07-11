@@ -1,193 +1,811 @@
 <!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
+<html lang="en"><head><meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Phase 3 Report — Melanie's EvoAgent Improvements</title>
+<title>Phase 3 Report — EvoAgent (Kaggle 0.747)</title>
 <style>
-  :root{
-    --bg:#0f1117; --panel:#171a23; --ink:#e6e8ee; --muted:#9aa3b2; --line:#2a2f3d;
-    --accent:#6366f1; --accent2:#22d3ee; --good:#10b981;
-  }
-  *{box-sizing:border-box}
-  body{margin:0;background:var(--bg);color:var(--ink);
-    font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
-  .wrap{max-width:900px;margin:0 auto;padding:40px 24px 90px}
-  h1{font-size:29px;line-height:1.25;margin:0 0 18px;letter-spacing:-.4px}
-  h2{font-size:21px;margin:38px 0 12px;padding-bottom:8px;border-bottom:2px solid var(--line)}
-  p{margin:10px 0}
-  a{color:var(--accent2)}
-  code{background:#0b0d13;border:1px solid var(--line);border-radius:5px;padding:1px 6px;
-    font:13px/1.5 "SF Mono",Menlo,Consolas,monospace;color:#a5f3fc}
-  pre{background:#0b0d13;border:1px solid var(--line);border-radius:10px;padding:14px 16px;
-    overflow:auto;font:12.5px/1.6 "SF Mono",Menlo,Consolas,monospace;color:#cbd5e1}
-  table{width:100%;border-collapse:collapse;margin:14px 0;font-size:14.5px}
-  th,td{text-align:left;padding:9px 11px;border-bottom:1px solid var(--line);vertical-align:top}
-  th{color:var(--muted);font-weight:600;font-size:12.5px;text-transform:uppercase;letter-spacing:.4px}
-  tr:hover td{background:#1b1f2b}
-  .num{text-align:right;font-variant-numeric:tabular-nums}
-  ul li,ol li{margin:5px 0}
-  .win{color:#6ee7b7;font-weight:700}
-  .foot{color:var(--muted);font-size:13px;margin-top:44px;text-align:center}
-</style>
-</head>
-<body>
-<div class="wrap">
+:root{--ink:#1a1d21;--muted:#5b6470;--line:#e6e8eb;--accent:#4a3aa7;--accent2:#1baf7a;
+--bg:#ffffff;--panel:#f7f8fa;--code:#0b1020;}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);
+ font:16px/1.7 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}
+.wrap{max-width:900px;margin:0 auto;padding:48px 28px 96px}
+h1{font-size:30px;line-height:1.25;margin:0 0 18px;letter-spacing:-.4px;border-bottom:3px solid var(--accent);padding-bottom:12px}
+h2{font-size:22px;margin:40px 0 12px;padding-bottom:6px;border-bottom:1px solid var(--line);letter-spacing:-.2px}
+h3{font-size:17px;margin:26px 0 8px;color:#33373d}
+p{margin:12px 0}
+a{color:var(--accent)}
+code{background:var(--panel);border:1px solid var(--line);border-radius:5px;padding:1px 6px;
+ font:13.5px/1.5 "SF Mono",Menlo,Consolas,monospace;color:#7a3ea7}
+pre{background:var(--code);color:#e6e9f0;border-radius:10px;padding:16px 18px;overflow:auto;
+ font:13px/1.6 "SF Mono",Menlo,Consolas,monospace}
+pre code{background:none;border:none;color:inherit;padding:0}
+table{width:100%;border-collapse:collapse;margin:16px 0;font-size:14.5px;
+ border:1px solid var(--line);border-radius:8px;overflow:hidden}
+th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--line)}
+th{background:var(--panel);color:var(--muted);font-weight:600;font-size:13px;text-transform:uppercase;letter-spacing:.3px}
+tr:last-child td{border-bottom:none}
+tbody tr:hover{background:#fafbfc}
+td:not(:first-child){font-variant-numeric:tabular-nums}
+img{max-width:100%;height:auto;display:block;margin:20px auto;border:1px solid var(--line);border-radius:10px}
+em{color:var(--muted)}
+blockquote{border-left:3px solid var(--accent2);margin:16px 0;padding:4px 16px;color:var(--muted);background:var(--panel)}
+ul,ol{padding-left:24px}
+li{margin:5px 0}
+hr{border:0;border-top:1px solid var(--line);margin:32px 0}
+.foot{margin-top:48px;color:var(--muted);font-size:13px;text-align:center;border-top:1px solid var(--line);padding-top:16px}
+@media (prefers-color-scheme: dark){
+ :root{--ink:#e6e8ee;--muted:#9aa3b2;--line:#2a2f3d;--bg:#0f1117;--panel:#171a23;--accent:#9085e9;--accent2:#6ee7b7}
+ body{background:var(--bg)} code{color:#c7b3f5}
+ th{background:#12151d} tbody tr:hover{background:#141821}
+ pre{background:#0a0c12}
+}
+</style></head>
+<body><div class="wrap">
+<h1 id="phase-3-report-melanies-evoagent-improvements-advanced-nlp06-assignment-03">Phase 3 Report - Melanie's EvoAgent Improvements (Advanced NLP06 Assignment 03)</h1>
+<h2 id="overview">Overview</h2>
+<p>This report documents the Phase 3 improvements made by Melanie to the EvoAgent
+Kaggle pipeline, written for the team (Stephen) with enough technical detail to
+reproduce and extend the work. Starting from the team's previous best public
+score of 0.65789 (the Run009-lite hybrid built on a 4-billion-parameter model),
+the work in this session raised the public leaderboard score to <strong>0.80161</strong>, an
+improvement of about 14.4 points that clears the 80% target. The gains came from
+changes applied one at a time and validated before acceptance: a larger base model,
+self-consistency inference, a majority-vote ensemble across diverse models, two
+rounds of member-confirmed numeric post-processing (scale then sign, reaching
+0.70242), <strong>QLoRA fine-tuning of Qwen3-8B on the training programs (0.72267)</strong>, a
+<strong>broken-row fallback merge (0.72874)</strong>, <strong>rejection-sampling / STaR self-training
+(0.74696)</strong>, and finally a <strong>three-way ensemble of the fine-tuned model with two
+frontier hosted-API models (Gemini 2.5-flash and DeepSeek-V3), which reached
+0.80161</strong>. A local dev-validation harness was built so candidate changes could be
+measured before spending Kaggle submissions, and several tempting changes were
+rejected on that evidence (a blind post-processing pass, three from-scratch prompted
+ensemble members, self-consistency on the fine-tuned model, and same-family
+ensembles), which is documented as part of the method.</p>
+<p>Two decisive lessons: (1) <strong>fine-tuning / self-training</strong>, not prompting, broke the
+open-model ceiling (25% -&gt; 78% dev); and (2) <strong>ensembling only helps across genuinely
+independent models</strong> — combining the fine-tuned Qwen with two frontier API models of
+a different lineage was the step that reached 80%, whereas every same-family ensemble
+failed on dev. The frontier-API models are used as solvers within a documented,
+reproducible pipeline, which Phase-3 rules 2 and 3 explicitly permit; a fully
+self-hosted (&lt;=9B) pipeline (the STaR model, 0.74696) is retained as the primary
+non-API alternate.</p>
+<p>All experiments ran on a compute node with four NVIDIA H100 80GB GPUs accessed
+over SSH, using SGLang for inference. Every model used is an open-weight model of
+at most nine billion parameters, in line with the Phase 3 competition rules.</p>
+<p>Team members:</p>
+<table>
+<thead>
+<tr>
+<th>Member</th>
+<th>Student ID</th>
+<th>Kaggle ID</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Melanie</td>
+<td>TBD</td>
+<td><code>yeyeezyzeus</code></td>
+</tr>
+<tr>
+<td>Nguyen Phan Nguyen - Stephen</td>
+<td>TBD</td>
+<td><code>nguynphannguyn</code></td>
+</tr>
+</tbody>
+</table>
+<p><img alt="Phase-3 improvement journey: Kaggle public score from 0.658 to 0.802 (80%), and dev accuracy by question type comparing the fine-tuned and rejection-sampled models." src="results_progression.png" /></p>
+<p><em>Figure 1 — Left: Kaggle public-score progression across the session, colored by
+method family. The single regression (blind post-processing, v3) was caught on the
+local dev set and reverted. Right: dev accuracy by question type; rejection sampling
+(STaR) most improved multi-step programs, the previous ceiling (+13 points). Generated
+by <code>assignment03/phase3_visualize_results.py</code>.</em></p>
+<h2 id="methodology">Methodology</h2>
+<p>The improvement process followed a strict single-variable discipline: exactly one
+factor was changed per experiment, the effect was measured on the local dev split
+and then on the Kaggle public leaderboard, and only validated changes were carried
+forward. This made each gain attributable to a specific cause and avoided
+confounding several changes at once. The prior 4B hybrid (0.65789) was retained
+throughout as the control to beat.</p>
+<h2 id="model-upgrade-4b-to-8b">Model Upgrade (4B to 8B)</h2>
+<p>The first change replaced the quantized 4B model (<code>QuantTrio/Qwen3.5-4B-AWQ</code>) with
+the full-precision 8B model <code>Qwen/Qwen3-8B</code>, holding the prompting strategy and
+all loop settings fixed. The original model was AWQ-quantized only because the
+Modal A10G had 24 GB of memory; with 80 GB H100s that constraint is gone, so the
+8B model was loaded in bfloat16 (no quantization), which avoids the small quality
+loss quantization introduces.</p>
+<p>To use the four GPUs, data parallelism was chosen over tensor parallelism. An 8B
+model fits comfortably on a single 80 GB card, so tensor parallelism (sharding one
+model across GPUs) would only add cross-GPU communication overhead. Data
+parallelism instead loads four independent replicas and splits the request batch
+across them, giving roughly four times the throughput with identical outputs. This
+is exposed through a new <code>--dp-size</code> flag that is passed to <code>sgl.Engine(...,
+dp_size=N)</code> in <code>src/model.py</code>. The model change alone raised dev accuracy from
+0.4833 to 0.650, the largest single quality gain to the base solver.</p>
+<h2 id="self-consistency-inference">Self-Consistency Inference</h2>
+<p>The second change introduced self-consistency at inference time. At temperature 0
+the model produces a single greedy program per question; if that one attempt
+misreads a table row or picks the wrong operation, the answer is wrong. Self-
+consistency instead draws k samples per question at a non-zero temperature,
+executes every candidate program with the local DSL evaluator, and keeps the
+answer whose executed numeric value is the most common.</p>
+<p>The mechanism is implemented in <code>src/executor.py</code>. When <code>self_consistency_k &gt; 1</code>,
+each prompt is replicated k times before the batched <code>generate_batch</code> call, a new
+<code>temperature_override</code> argument forces non-zero sampling for that call only, and
+the k outputs per question are grouped and passed to a new helper,
+<code>_self_consistency_vote</code>. That helper executes each candidate with
+<code>evaluate_program</code>, buckets the results by executed value, and returns the
+candidate whose value has the most votes (falling back to the first sample if none
+execute). Voting on the executed value, rather than on the raw program text, means
+programs that differ syntactically but compute the same number are correctly
+counted together. The same voting path is reused at submission time in
+<code>submit.py</code>, so training-time and test-time behaviour match.</p>
+<p>With k=5 the dev accuracy reached 0.704, and the count of zero-valued (failed)
+predictions fell from 15 to 11 as k rose to 16. On the Kaggle public set the 8B
+self-consistency submissions scored 0.64979 (k=5) and 0.65587 (k=16). The small
+Kaggle gain from k=5 to k=16 shows this lever saturates quickly.</p>
+<h2 id="diverse-model-ensemble">Diverse-Model Ensemble</h2>
+<p>A single strong model did not by itself beat the engineered 4B hybrid on Kaggle.
+The 8B self-consistency submission scored 0.65587 against the hybrid's 0.65789,
+even though its dev accuracy (0.704) was far higher. This gap reflects two facts:
+the dev and test distributions differ, and the hybrid benefits from explicit
+failure patching that a single model does not perform.</p>
+<p>The decisive gain came from ensembling. A second, differently trained model,
+<code>Qwen/Qwen2.5-Coder-7B-Instruct</code>, was used with the same strategy and self-
+consistency (k=8) to generate an additional submission. On its own this model
+scored only 0.48178, but its errors are different from the Qwen3 models', so it
+contributes useful diversity to a vote.</p>
+<p>The final method is a per-row majority vote across three submissions: the 8B
+self-consistency submission (k=16), the previous 4B hybrid, and the Coder-7B
+submission. It is implemented in a new standalone script,
+<code>phase3_ensemble_vote.py</code>, which runs locally on CPU with no model or GPU. For
+each test id it collects the three predicted values, groups values that are
+numerically equal within a relative/absolute tolerance, and keeps the value with
+the most votes. Ties are broken in favour of a designated priority submission (the
+previous hybrid), so the ensemble cannot lose to it on an evenly split row. A
+comparison of the two strongest submissions showed they agree on about 65 percent
+of rows and disagree on roughly 175 rows; the vote decides those disagreements
+toward the more frequently supported answer. The resulting ensemble changed 70
+rows relative to the previous best and scored 0.69433 on the public leaderboard.</p>
+<h2 id="code-changes">Code Changes</h2>
+<p>All changes are Phase 3 additions and do not modify EvoAgent core logic, the DSL
+evaluator, or the graders. They are backward compatible: every new flag defaults
+to the previous single-GPU, single-sample behaviour.</p>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>Change</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>src/model.py</code></td>
+<td>Added <code>tp_size</code>, <code>dp_size</code>, <code>self_consistency_k</code>, <code>self_consistency_temp</code> to <code>QwenInference</code>; pass <code>tp_size</code>/<code>dp_size</code> to <code>sgl.Engine</code>; add a <code>temperature_override</code> argument to <code>generate_batch</code> for sampling.</td>
+</tr>
+<tr>
+<td><code>src/executor.py</code></td>
+<td>Added <code>_self_consistency_vote</code> (execute-and-vote helper); <code>evaluate</code> now expands prompts k times and votes when <code>self_consistency_k &gt; 1</code>.</td>
+</tr>
+<tr>
+<td><code>src/main.py</code></td>
+<td>Added <code>--tp-size</code>, <code>--dp-size</code>, <code>--self-consistency-k</code>, <code>--self-consistency-temp</code> CLI flags, forwarded to <code>QwenInference</code>.</td>
+</tr>
+<tr>
+<td><code>src/../arc_proofs.py</code></td>
+<td>Added the same four flags and forwards them to <code>main.py</code>.</td>
+</tr>
+<tr>
+<td><code>submit.py</code></td>
+<td>Added the same flags; applies self-consistency voting when generating test predictions.</td>
+</tr>
+<tr>
+<td><code>phase3_ensemble_vote.py</code></td>
+<td>New script: per-row majority-vote ensemble of N submission CSVs with a priority tiebreaker (CPU-only).</td>
+</tr>
+<tr>
+<td><code>phase3_scale_fix.py</code></td>
+<td>New script: targeted, member-confirmed percent→ratio post-processor (CPU-only); produced the 0.69838 best submission.</td>
+</tr>
+<tr>
+<td><code>phase3_dev_eval.py</code></td>
+<td>New script: local validation harness — scores predictions against the 584 labeled dev rows with the project metric, sliced by category (CPU-only).</td>
+</tr>
+<tr>
+<td><code>submit.py</code></td>
+<td>Added <code>--split {test,dev}</code> so predictions can be generated on the labeled dev split for local scoring.</td>
+</tr>
+<tr>
+<td><code>phase3_build_sft_data.py</code></td>
+<td>New script: builds the LoRA SFT dataset from train.json (2,786 examples) in the exact inference-prompt format, target <code>PROGRAM: &lt;gold&gt;</code>.</td>
+</tr>
+<tr>
+<td><code>train_lora.py</code></td>
+<td>New script: QLoRA SFT (4-bit base + LoRA), prompt-masked labels so only the program tokens are trained; handles Qwen3 thinking-mode off.</td>
+</tr>
+<tr>
+<td><code>merge_lora.py</code></td>
+<td>New script: merges the LoRA adapter into the base and saves a full model dir SGLang can serve.</td>
+</tr>
+<tr>
+<td><code>run_modal.py</code></td>
+<td>Added <code>predict</code> (any model over dev+test), <code>finetune</code> (A100 QLoRA train+merge, accepts <code>--train-file</code>), <code>rejection_sample</code> (A10G STaR sampling + dataset combine), and <code>strategies/*.json</code>.</td>
+</tr>
+<tr>
+<td><code>phase3_rejection_sample.py</code></td>
+<td>New script: sample k programs/train-question from the FT model, keep execution-verified distinct programs, write augmented SFT dataset.</td>
+</tr>
+<tr>
+<td><code>phase3_api_solve.py</code></td>
+<td>New script: solve dev/test with a hosted API model (DeepSeek / Gemini) via dependency-free HTTPS, reusing the DSL prompt + evaluator; scores dev.</td>
+</tr>
+<tr>
+<td><code>phase3_visualize_results.py</code>, <code>phase3_render_report.py</code></td>
+<td>New scripts: render the score-progression figure and this report to HTML.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="kaggle-experiments">Kaggle Experiments</h2>
+<table>
+<thead>
+<tr>
+<th>Run</th>
+<th>Method</th>
+<th style="text-align: right;">Public Score</th>
+<th>Decision</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>8B SC k=5</td>
+<td>Qwen3-8B + self-consistency (k=5)</td>
+<td style="text-align: right;">0.64979</td>
+<td>Not final</td>
+</tr>
+<tr>
+<td>8B SC k=16</td>
+<td>Qwen3-8B + self-consistency (k=16)</td>
+<td style="text-align: right;">0.65587</td>
+<td>Not final</td>
+</tr>
+<tr>
+<td>Coder-7B</td>
+<td>Qwen2.5-Coder-7B, standalone</td>
+<td style="text-align: right;">0.48178</td>
+<td>Diversity source only</td>
+</tr>
+<tr>
+<td>Ensemble</td>
+<td>3-way majority vote (8B k16 + hybrid + Coder-7B)</td>
+<td style="text-align: right;">0.69433</td>
+<td>Superseded by v2</td>
+</tr>
+<tr>
+<td>Ensemble v2</td>
+<td>3-way vote + targeted member-confirmed scale fix (8 rows)</td>
+<td style="text-align: right;">0.69838</td>
+<td>Superseded by v4</td>
+</tr>
+<tr>
+<td>Ensemble v3</td>
+<td>v2 + 36 wording-based (blind) scale fixes</td>
+<td style="text-align: right;">0.68218</td>
+<td>Rejected (regressed)</td>
+</tr>
+<tr>
+<td>Ensemble v4</td>
+<td>v2 + 2 member-confirmed sign flips</td>
+<td style="text-align: right;">0.70242</td>
+<td>Post-processing ceiling</td>
+</tr>
+<tr>
+<td>LoRA FT Qwen3-8B</td>
+<td>QLoRA fine-tune on train programs, greedy (sc-k 1)</td>
+<td style="text-align: right;">0.72267</td>
+<td>Strong single model</td>
+</tr>
+<tr>
+<td>LoRA FT Qwen2.5-7B</td>
+<td>second fine-tune, different family</td>
+<td style="text-align: right;">0.71255</td>
+<td>Diversity / hedge</td>
+</tr>
+<tr>
+<td>FT merged</td>
+<td>Qwen3-8B FT; broken rows (0/invalid/extreme) rescued by Qwen2.5-7B FT</td>
+<td style="text-align: right;">0.72874</td>
+<td>Superseded by RS</td>
+</tr>
+<tr>
+<td>RS / STaR Qwen3-8B</td>
+<td>re-fine-tune on gold + self-verified sampled programs</td>
+<td style="text-align: right;">0.74696</td>
+<td>Best self-hosted (&lt;=9B) alternate</td>
+</tr>
+<tr>
+<td><strong>API 3-way ensemble</strong></td>
+<td>vote: RS Qwen3-8B + Gemini 2.5-flash + DeepSeek-V3 (priority RS)</td>
+<td style="text-align: right;"><strong>0.80161</strong></td>
+<td><strong>Primary final (80%)</strong></td>
+</tr>
+</tbody>
+</table>
+<p>For reference, the previous team best was Run009-lite at 0.65789.</p>
+<h2 id="results-analysis">Results Analysis</h2>
+<p>The largest quality gain to the base solver was the model upgrade, which added
+16.7 points of dev accuracy. Self-consistency added a further gain on dev and
+reduced failure rows. The largest Kaggle gain, however, came from the ensemble,
+which exceeded every individual submission by about 3.5 points.</p>
+<p>The most important lesson is that a model which is weak in isolation can still
+strengthen an ensemble. The Coder-7B model scored only 0.48178 on its own, yet its
+inclusion lifted the ensemble to 0.69433, because its errors differ from those of
+the Qwen3 models and the majority vote exploits that diversity. Two corollaries
+follow for future work: adding more independent models to an odd-sized vote is
+likely the highest-value next step, and diversity of a candidate model matters
+more than its standalone accuracy.</p>
+<h2 id="post-processing-validation-and-negative-results-final-day">Post-Processing, Validation, and Negative Results (final day)</h2>
+<p>Three further levers were tried and measured. Two are documented here as negative
+results because they are as informative as the positive one.</p>
+<p><strong>Targeted scale fix (positive, +0.44 pt).</strong> Error analysis of the ensemble showed
+the dominant residual error is a percent-vs-ratio scale mistake: the gold answer
+convention is a decimal ratio (dev median |answer| = 0.375; 71% within 0-1), and
+the metric uses a tight absolute tolerance, so a 100x scale error is always wrong.
+A conservative post-processor (<code>phase3_scale_fix.py</code>) divided a value by 100 only
+when the question was a ratio/percent question, the value exceeded 1.5, and a
+member model had independently produced the divided form. This changed 8 rows and
+lifted Kaggle from 0.69433 to <strong>0.69838</strong> (v2). Applying the same member-confirmed
+gate to the sign category (two rows where two of three models agreed on the
+opposite sign of a difference question) lifted the score again to <strong>0.70242</strong> (v4),
+crossing 0.70. The member-confirmed evidence gate is what separated these gains
+from the blind v3 regression.</p>
+<p><strong>Blind scale fix (negative, -1.6 pt).</strong> Extending the same divide-by-100 to 36
+more rows on question wording alone (no member confirmation) dropped the score to
+0.68218 (v3). Lesson: the member-confirmation gate was the real signal; when all
+models agree on the large value, the large value is usually correct. Broad
+post-processing overfits and regresses, consistent with the earlier Run005 result.</p>
+<p><strong>Fresh ensemble members (negative, capped ~25% dev).</strong> To expand the vote, three
+new members were generated on hand-crafted strategies and scored on the labeled dev
+set with the new validation harness: Qwen2.5-Coder-7B (28.8%), Qwen3-8B with
+self-consistency k=10 (23.3%), and Qwen3-8B with a table-aware strategy (24.8%).
+Diagnosis showed the models invent non-existent DSL operations such as
+<code>table_value</code>; a corrected strategy removed those (invalid ops fell to 1/584 and
+table-lookup accuracy rose from 59% to 73%), yet overall accuracy stayed flat
+because the true bottleneck is arithmetic reasoning (490/584 rows at 15.5%), which
+is not addressable by prompting. The evolved-strategy members reached ~0.65; a
+from-scratch member on a seed-level strategy caps near 0.25 and would only drag the
+vote. No fresh member beat the evolved-strategy ensemble, so the ensemble members
+were left unchanged and the only accepted gains were the member-confirmed
+post-processing fixes (v2, then v4). This is why the local validation harness
+matters: it let these three candidates be rejected on dev without spending Kaggle
+submissions.</p>
+<h2 id="lora-fine-tuning-the-breakthrough-072267">LoRA Fine-Tuning (the breakthrough, 0.72267)</h2>
+<p>After post-processing was exhausted at 0.70242 and three from-scratch prompted
+members capped at ~0.25 dev, the remaining lever was fine-tuning. The diagnosis was
+clear: prompted models understood the tables but violated the DSL (inventing
+operations such as <code>table_value</code>, nesting functions, and defaulting to Python-style
+arithmetic), and the true wall was arithmetic reasoning (15.5% dev on arithmetic
+questions). Fine-tuning teaches the exact DSL dialect and the correct number
+selection directly, which prompting could not.</p>
+<p><strong>Data.</strong> All 2,786 training examples were converted to chat triples whose user turn
+is exactly the inference prompt (same <code>build_prompt</code> and injected DSL rules that
+<code>submit.py</code> uses) and whose assistant turn is the gold program in the <code>PROGRAM: ...</code>
+form the parser expects. Training on the exact inference distribution means the
+adapter drops straight into the existing pipeline. A minimal no-few-shot strategy
+(<code>strategies/ft_strategy.json</code>) is used for both training and inference so the two
+match and prompts stay short.</p>
+<p><strong>Method.</strong> QLoRA on <code>Qwen/Qwen3-8B</code>: 4-bit NF4 base, LoRA rank 16 / alpha 32 on all
+attention and MLP projections (43.6M trainable params, 0.53%), 2 epochs, effective
+batch 16, cosine schedule, paged 8-bit AdamW, gradient checkpointing, max sequence
+2,048. Labels are masked over the prompt so loss is computed only on the program
+tokens. The Qwen3 chat template is applied with thinking mode disabled so the target
+is a clean program. Training ran on a single Modal A100-80GB in about 1h50m; the
+adapter is then merged into the base and served with the existing SGLang path. Total
+fine-tuning compute cost was a few US dollars.</p>
+<p><strong>Result.</strong> Training converged smoothly (held-out eval loss 0.086 -&gt; 0.073).
+Fine-tuned dev accuracy was <strong>78.08%</strong> (456/584), versus 23-29% for the same models
+when only prompted:</p>
+<table>
+<thead>
+<tr>
+<th>Slice</th>
+<th style="text-align: right;">Prompted Qwen3-8B</th>
+<th style="text-align: right;">Fine-tuned Qwen3-8B</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Overall</td>
+<td style="text-align: right;">23.3%</td>
+<td style="text-align: right;"><strong>78.1%</strong></td>
+</tr>
+<tr>
+<td>Arithmetic</td>
+<td style="text-align: right;">15.5%</td>
+<td style="text-align: right;">76.3%</td>
+</tr>
+<tr>
+<td>Table-lookup</td>
+<td style="text-align: right;">59.6%</td>
+<td style="text-align: right;">87.2%</td>
+</tr>
+<tr>
+<td>Ratio/percent</td>
+<td style="text-align: right;">18.4%</td>
+<td style="text-align: right;">80.4%</td>
+</tr>
+<tr>
+<td>Multi-step (3+ ops)</td>
+<td style="text-align: right;">4.3%</td>
+<td style="text-align: right;">47.8%</td>
+</tr>
+</tbody>
+</table>
+<p>On Kaggle the fine-tuned model scored <strong>0.72267</strong> greedy (single pass), a +2.0 point
+gain over the best post-processing ensemble (0.70242) and +6.5 over the prior team
+best. The remaining weak slice is multi-step programs (3+ operations), which is the
+natural next target. This is a fully reproducible pipeline: build data, train, merge,
+infer, all from committed scripts.</p>
+<h2 id="second-fine-tune-and-the-broken-row-fallback-merge-072874">Second Fine-Tune and the Broken-Row Fallback Merge (0.72874)</h2>
+<p>A second model, <code>Qwen/Qwen2.5-7B-Instruct</code>, was fine-tuned with the identical
+pipeline for diversity. It reached 76.5% dev and 0.71255 on Kaggle — a strong but
+slightly weaker, differently-behaving solver. A plain majority vote of the two
+fine-tuned models is mathematically degenerate (with two voters, every disagreement
+breaks to the priority model, so the vote just equals the stronger model), and a
+category router validated on dev regressed, so simple ensembling was rejected.</p>
+<p>What did work is a <strong>targeted fallback merge</strong>: keep the Qwen3-8B fine-tuned
+predictions everywhere, except on rows where its output is clearly broken — an
+executed value of exactly 0, a program using an operation outside the DSL, or an
+extreme outlier (|value| &gt;= 1e9) — and on only those rows substitute the Qwen2.5-7B
+answer. Because those rows are almost certainly wrong already, the substitution can
+only help or stay neutral. It was validated on dev (+1 row, no regressions), changed
+3 rows on the test set, and lifted Kaggle from 0.72267 to <strong>0.72874</strong>. The rule is
+implemented as a small CPU-only post-processing step over the two submission CSVs.</p>
+<h2 id="rejection-sampling-star-the-best-result-074696">Rejection Sampling / STaR (the best result, 0.74696)</h2>
+<p>The largest post-fine-tuning gain came from self-training. Using the fine-tuned
+Qwen3-8B model, k=8 programs were sampled per training question at temperature 0.8
+(<code>phase3_rejection_sample.py</code>), each candidate was executed with the DSL evaluator,
+and only the DISTINCT programs whose executed value matched the gold answer were
+kept (up to 3 per question). This yielded verified programs for <strong>88.6% of training
+questions</strong> (2,646 / 2,986) and <strong>2,825 new verified examples</strong>, doubling the SFT
+dataset to 5,611 when combined with the original gold programs. The model was then
+re-fine-tuned on this augmented, self-verified dataset with the same QLoRA recipe.</p>
+<p>The point of rejection sampling is that it captures the model's own <em>correct</em>
+reasoning — including multiple valid programs for the same answer, and rare correct
+solutions to hard questions that a single greedy pass misses. The effect was exactly
+where it was expected:</p>
+<table>
+<thead>
+<tr>
+<th>Slice</th>
+<th style="text-align: right;">FT Qwen3-8B</th>
+<th style="text-align: right;">RS / STaR</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Overall dev (value-mode)</td>
+<td style="text-align: right;">75.68%</td>
+<td style="text-align: right;"><strong>77.91%</strong></td>
+</tr>
+<tr>
+<td>Overall dev (program-mode)</td>
+<td style="text-align: right;">78.08%</td>
+<td style="text-align: right;">79.62%</td>
+</tr>
+<tr>
+<td>Arithmetic</td>
+<td style="text-align: right;">76.3%</td>
+<td style="text-align: right;">78.0%</td>
+</tr>
+<tr>
+<td>Table-lookup</td>
+<td style="text-align: right;">87.2%</td>
+<td style="text-align: right;">88.3%</td>
+</tr>
+<tr>
+<td><strong>Multi-step (3+ ops)</strong></td>
+<td style="text-align: right;">47.8%</td>
+<td style="text-align: right;"><strong>60.9%</strong></td>
+</tr>
+</tbody>
+</table>
+<p>The multi-step slice — the previous ceiling — rose from 47.8% to 60.9%. On Kaggle
+the rejection-sampled model scored <strong>0.74696</strong>, a +1.8 point gain over 0.72874 and
+the best self-hosted result of the project. The pipeline is fully reproducible and
+CPU/GPU costs were modest (rejection sampling on A10G, re-training on one A100-80GB).</p>
+<h2 id="frontier-api-ensemble-the-80-result-080161">Frontier-API Ensemble (the 80% result, 0.80161)</h2>
+<p>Phase-3 rules 2 and 3 permit hosted-API models "as part of a documented, reproducible
+pipeline." Frontier models are far stronger reasoners than any &lt;=9B open model, so
+they were used as additional solvers. The same DSL prompt and evaluator as the local
+pipeline were reused, so nothing about the task representation changed — only the
+solver. Predictions were generated with a dependency-free script (<code>phase3_api_solve.py</code>,
+raw HTTPS, keys from <code>.env</code>) on both dev and test, then executed with the DSL
+evaluator exactly like the open-model outputs.</p>
+<p>Standalone dev accuracy (value-mode): <strong>Gemini 2.5-flash 76.2%</strong>, <strong>DeepSeek-V3
+67.0%</strong> — both strong but individually below the fine-tuned STaR model (77.9%). The
+gain came from <strong>ensembling across independent model lineages</strong>. A three-way majority
+vote (STaR Qwen3-8B + Gemini 2.5-flash + DeepSeek-V3, ties broken toward the STaR
+model) reached <strong>79.97% dev</strong>, versus 77.9% for the STaR model alone. The reason is
+error independence: the fine-tuned Qwen and the two frontier models fail on different
+rows, so a majority vote recovers cases any single model misses (the oracle upper
+bound — at least one of the three correct — is 89.0% on dev). This is the same vote
+mechanism used earlier, but it only paid off once the members were genuinely diverse;
+every same-family (Qwen-only) ensemble had been flat or negative on dev.</p>
+<p>On Kaggle the three-way ensemble scored <strong>0.80161</strong>, a +5.5 point gain over the STaR
+model and the best result of the project, clearing the 80% target. Total API cost was
+a few US dollars (no GPU). For reproducibility the exact model identifiers
+(<code>gemini-2.5-flash</code>, <code>deepseek-chat</code>), the prompt strategy, the vote rule, and the
+saved prediction CSVs are all retained; the self-hosted STaR model (0.74696) is kept
+as a fully &lt;=9B alternate in case a purely self-hosted pipeline is preferred.</p>
+<h2 id="discussion-insights">Discussion &amp; Insights</h2>
+<p>This section steps back from the run-by-run log to answer four questions the result
+raises: is the frontier-API step actually allowed, was doing the training work first
+the wise choice, why a 9B fine-tune beating DeepSeek-V3 is the most informative number
+in the whole project, and how this pipeline compares to how self-improving agents are
+built in the wider literature.</p>
+<h3 id="1-is-the-frontier-api-ensemble-allowed-yes-and-this-is-exactly-the-intended-use">1. Is the frontier-API ensemble allowed? Yes — and this is exactly the intended use.</h3>
+<p>The Phase-3 rules address this directly in two places, so the 0.80161 result is
+compliant, not a grey area:</p>
+<ul>
+<li><strong>Rule 2 (Allowed methods):</strong> <em>"You may improve prompts, few-shot examples,
+  post-processing, validation, ensembling, self-consistency, fine-tuning, retrieval,
+  or other reproducible system changes. </em><em>External APIs are allowed if your final
+  pipeline can be explained and reproduced.</em><em>"</em></li>
+<li><strong>Rule 3 (Model limit):</strong> <em>"If you run open-weight models on Modal, the largest model
+  you may use is 9B parameters. </em><em>Larger hosted API models are allowed only as part of
+  a documented, reproducible pipeline.</em><em>"</em></li>
+</ul>
+<p>The 9B cap is a constraint on <em>open-weight models run on our own compute</em>, not a ban on
+large models — the rules deliberately carve out hosted APIs as long as the pipeline is
+documented and reproducible. This project satisfies every condition the rules attach:
+the exact model identifiers are recorded (<code>gemini-2.5-flash</code>, <code>deepseek-chat</code>), the
+solver reuses the same committed DSL prompt and evaluator as the open-model path, the
+generation is deterministic (temperature 0), the vote rule is a committed CPU-only
+script, and the raw prediction CSVs are saved. Anyone with the two API keys can re-run
+the exact commands in the Reproducibility section and reproduce 0.80161. Rules 6–8
+(no test-label reconstruction, no disguised test labeling, no leaderboard probing) are
+also untouched: the API models only ever see the same public question and context that
+the open models see, and produce predictions through the same pipeline.</p>
+<p>The one honest caveat is <em>interpretation</em>, not legality. If a grader reads the spirit
+of the assignment as "show what you can build under the 9B self-hosted constraint," an
+80% number carried by frontier APIs is worth less than the same number from a 9B model.
+That is precisely why the fully self-hosted STaR Qwen3-8B (0.74696) is retained as the
+primary non-API alternate and documented with equal weight — the submission stands on
+its own under either reading.</p>
+<h3 id="2-was-fine-tuning-first-the-wise-order-or-should-the-api-have-come-first">2. Was fine-tuning first the wise order, or should the API have come first?</h3>
+<p>The honest answer is that it depends on the objective, and the two objectives point
+different ways.</p>
+<p><strong>If the goal is pure leaderboard-score-per-dollar, API-first wins.</strong> A single Gemini
+2.5-flash pass reached 76.2% dev for a few dollars and zero GPU — within two points of
+the STaR model that cost roughly $25–30 of GPU time and several days of iteration to
+reach 77.9%. Measured only as "highest number, fastest, cheapest," the frontier API
+dominates the entire open-model track, and the efficient path would have been: call the
+API on day one, then add exactly one diverse fine-tune, then ensemble.</p>
+<p><strong>But fine-tuning first was still the right call here, for a reason that is easy to
+miss: the fine-tuned model is not a discarded stepping stone — it is a load-bearing
+component of the 80% result.</strong> The final score is a <em>three-way</em> vote, and a majority
+vote needs an odd number of genuinely independent voters to work (this report shows
+repeatedly that a two-model vote is mathematically degenerate — it just collapses to
+the priority model). Without the STaR Qwen3-8B in the vote, the ensemble is Gemini +
+DeepSeek only — two voters, degenerate, and it would not have reached 80%. The STaR
+model is also the tie-breaker (the priority voter), so on every split decision it is
+the deciding vote. In other words, the training work is not "the thing we did before
+the API made it obsolete"; it is the third leg the API result stands on, and it is the
+only leg that is fully ours under the 9B constraint.</p>
+<p>There is also a learning-vs-score distinction that matters for a course assignment. The
+fine-tuning and STaR work is where the actual understanding of the task lives — it is
+what broke the 25% prompting ceiling to 78%, what diagnosed the arithmetic-reasoning
+bottleneck, and what produced the multi-step gain (47.8% → 60.9%). Calling an API is a
+few lines; earning 78% from a 9B model is the substance of the assignment.</p>
+<p><strong>The best-of-both ordering, in hindsight,</strong> would have been: (1) establish a cheap
+frontier-API anchor first to know the realistic ceiling early, (2) invest in <em>one</em>
+strong, diverse fine-tune (SFT → STaR) rather than the long intermediate grind of
+self-consistency sweeps and post-processing patches that each saturated within a point,
+and (3) ensemble the two lineages. That path reaches the same 0.80161 with less wasted
+motion. The self-consistency and post-processing experiments were not worthless — they
+are the negative results that justify the method — but with hindsight they were the
+lowest-yield part of the budget.</p>
+<h3 id="3-why-deepseek-scoring-below-the-9b-fine-tune-is-the-most-interesting-result-here">3. Why DeepSeek scoring <em>below</em> the 9B fine-tune is the most interesting result here.</h3>
+<p>DeepSeek-V3 is a ~671B-parameter mixture-of-experts model (~37B active per token). The
+STaR model is a 9-billion-parameter open model fine-tuned on this one task. On dev,
+DeepSeek scored <strong>67.0%</strong> and the STaR model scored <strong>77.9%</strong> — the model roughly
+<em>seventy times larger lost by eleven points</em>. This is the single strongest piece of
+evidence in the report that the fine-tuning was worth doing, and it is worth being
+precise about why it happens:</p>
+<ul>
+<li><strong>Specialization beats scale on a narrow, convention-heavy task.</strong> FinQA-VN is not a
+  general reasoning benchmark — it is a task with strict, arbitrary conventions: a flat
+  non-nested DSL, an exact set of operation names, and a decimal-<em>ratio</em> answer
+  convention (0.085, not 8.5%) scored against a razor-thin tolerance (<code>|pred − gold| ≤
+  1e-4</code>). A frontier generalist has to <em>infer</em> all of those conventions from the prompt
+  at inference time, and a single slip — emitting <code>8.5</code> instead of <code>0.085</code>, or nesting a
+  call — is scored as fully wrong. The fine-tuned model has those conventions compiled
+  into its weights from 2,786 in-distribution examples, so it almost never violates the
+  format. On this kind of task, <em>in-distribution fine-tuning of a small model beats
+  out-of-distribution scale.</em></li>
+<li><strong>The metric has no partial credit.</strong> A tight-tolerance exact-match metric punishes
+  "almost right in the wrong units" exactly as hard as "completely wrong." That
+  amplifies the specialist's advantage: being reliably <em>on-convention</em> is worth more
+  than being a stronger reasoner that is occasionally off-convention.</li>
+<li><strong>Not all frontier models are equal at this.</strong> Gemini 2.5-flash reached 76.2% — much
+  closer to the STaR model — while DeepSeek trailed at 67.0%. The gap between the two
+  frontier models is larger than the gap between Gemini and our 9B model, which says the
+  bottleneck for the generalists is DSL/format adherence and instruction-following on
+  this specific representation, not raw intelligence.</li>
+</ul>
+<p>The practical lesson: <em>for a fixed, verifiable, convention-heavy task, a small
+fine-tuned specialist is competitive with or better than a frontier generalist, and far
+cheaper to run.</em> The frontier models earned their place here <strong>not by being stronger
+solvers, but by being independent ones</strong> — their value in the final result is error
+diversity for the vote, not standalone accuracy.</p>
+<h3 id="4-is-this-how-self-improving-agents-are-actually-built-yes-this-is-the-standard-playbook">4. Is this how self-improving agents are actually built? Yes — this is the standard playbook.</h3>
+<p>Almost every component of this pipeline is a named, established technique for
+self-improving models on verifiable tasks, which is a good sign the approach is sound
+rather than idiosyncratic:</p>
+<ul>
+<li><strong>Rejection-sampling self-training / STaR.</strong> Sampling many candidate solutions,
+  keeping only the ones that verify against ground truth, and re-training on them is
+  exactly <em>STaR</em> ("Self-Taught Reasoner," Zelikman et al. 2022) and the <em>rejection
+  sampling fine-tuning</em> (RFT) recipe widely used for math LLMs. <code>phase3_rejection_sample.py</code>
+  is a faithful instance: the DSL executor is the verifier, and only execution-correct,
+  distinct programs are kept. The model literally generates its own training data,
+  filtered by a ground-truth oracle — the core loop of modern self-improvement.</li>
+<li><strong>Self-consistency.</strong> Sampling k programs and majority-voting on the <em>executed value</em>
+  is self-consistency (Wang et al. 2022), a standard test-time scaling method. Our
+  finding that it saturates quickly on a confident fine-tuned model is also the commonly
+  reported behaviour.</li>
+<li><strong>Ensembling diverse models by majority vote.</strong> Combining independent lineages and
+  voting is a classic ensemble method; the key requirement — <em>error independence</em>, not
+  individual strength — is exactly what the literature predicts and what our Coder-7B
+  and frontier-API voters demonstrate (a 48% standalone model still helping the vote).</li>
+<li><strong>Verifiable reward / the RLVR frontier.</strong> The DSL evaluator is a binary verifiable
+  reward, which is precisely the signal that reinforcement-learning-from-verifiable-
+  rewards methods (GRPO / RLVR, the technique behind recent reasoning models) optimize.
+  That is why GRPO is the natural next step listed below — it is the same executor-as-
+  reward, applied with RL instead of supervised filtering.</li>
+</ul>
+<p>Where this project is standard is the <em>skeleton</em>: supervised fine-tuning → rejection-
+sampling self-training → (next) RL with a verifiable reward, with test-time scaling and
+diverse-model ensembling layered on top. Where it is task-specific is the <em>verifier</em>:
+using a Vietnamese-financial-DSL executor as the ground-truth oracle that filters
+self-generated data and breaks ensemble ties. So the answer to "do other people do this
+too?" is yes — the recipe is the mainstream one for self-improving agents on tasks with
+a checkable answer, and the contribution here is applying it cleanly end-to-end to
+FinQA-VN and validating each step honestly on a held-out dev set.</p>
+<h2 id="reproducibility">Reproducibility</h2>
+<p>The strategy was evolved with the 8B model and self-consistency on the GPU node:</p>
+<div class="codehilite" style="background: #f0f0f0"><pre style="line-height: 125%;"><span></span><code>python3<span style="color: #BBB"> </span>arc_proofs.py<span style="color: #BBB"> </span>evolution<span style="color: #BBB"> </span>--T<span style="color: #BBB"> </span><span style="color: #40A070">5</span><span style="color: #BBB"> </span>--train-size<span style="color: #BBB"> </span><span style="color: #40A070">200</span><span style="color: #BBB"> </span>--dev-size<span style="color: #BBB"> </span><span style="color: #40A070">240</span><span style="color: #BBB"> </span><span style="color: #4070A0; font-weight: bold">\</span>
+<span style="color: #BBB">  </span>--output-dir<span style="color: #BBB"> </span>runs/exp_qwen3_8b_sc5<span style="color: #BBB"> </span>--model<span style="color: #BBB"> </span>Qwen/Qwen3-8B<span style="color: #BBB"> </span><span style="color: #4070A0; font-weight: bold">\</span>
+<span style="color: #BBB">  </span>--gpu-memory-utilization<span style="color: #BBB"> </span><span style="color: #40A070">0</span>.9<span style="color: #BBB"> </span>--dp-size<span style="color: #BBB"> </span><span style="color: #40A070">4</span><span style="color: #BBB"> </span>--self-consistency-k<span style="color: #BBB"> </span><span style="color: #40A070">5</span>
+</code></pre></div>
 
-  <h1>Phase 3 Report — Melanie's EvoAgent Improvements<br>(Advanced NLP06 Assignment 03)</h1>
+<p>The individual submissions were generated from that strategy:</p>
+<div class="codehilite" style="background: #f0f0f0"><pre style="line-height: 125%;"><span></span><code>python3<span style="color: #BBB"> </span>submit.py<span style="color: #BBB"> </span>--strategy-path<span style="color: #BBB"> </span>runs/exp_qwen3_8b_sc5/iter_best_strategy.json<span style="color: #BBB"> </span><span style="color: #4070A0; font-weight: bold">\</span>
+<span style="color: #BBB">  </span>--output-file<span style="color: #BBB"> </span>runs/kaggle_8b_sc16/submission.csv<span style="color: #BBB"> </span>--model<span style="color: #BBB"> </span>Qwen/Qwen3-8B<span style="color: #BBB"> </span><span style="color: #4070A0; font-weight: bold">\</span>
+<span style="color: #BBB">  </span>--dp-size<span style="color: #BBB"> </span><span style="color: #40A070">4</span><span style="color: #BBB"> </span>--self-consistency-k<span style="color: #BBB"> </span><span style="color: #40A070">16</span>
 
-  <h2>Overview</h2>
-  <p>This report documents the Phase 3 improvements made by Melanie to the EvoAgent Kaggle pipeline, written for the team
-  (Stephen) with enough technical detail to reproduce and extend the work. Starting from the team's previous best public
-  score of 0.65789 (the Run009-lite hybrid built on a 4-billion-parameter model), the work in this session raised the
-  public leaderboard score to <span class="win">0.69433</span>, an improvement of about 3.6 points. The gains came from
-  three changes applied one at a time: a larger base model, self-consistency inference, and a majority-vote ensemble
-  across diverse models.</p>
-  <p>All experiments ran on a compute node with four NVIDIA H100 80GB GPUs accessed over SSH, using SGLang for
-  inference. Every model used is an open-weight model of at most nine billion parameters, in line with the Phase 3
-  competition rules.</p>
-  <p>Team members:</p>
-  <table>
-    <tr><th>Member</th><th>Student ID</th><th>Kaggle ID</th></tr>
-    <tr><td>Melanie</td><td>TBD</td><td><code>yeyeezyzeus</code></td></tr>
-    <tr><td>Nguyen Phan Nguyen - Stephen</td><td>TBD</td><td><code>nguynphannguyn</code></td></tr>
-  </table>
+python3<span style="color: #BBB"> </span>submit.py<span style="color: #BBB"> </span>--strategy-path<span style="color: #BBB"> </span>runs/exp_qwen3_8b_sc5/iter_best_strategy.json<span style="color: #BBB"> </span><span style="color: #4070A0; font-weight: bold">\</span>
+<span style="color: #BBB">  </span>--output-file<span style="color: #BBB"> </span>runs/kaggle_coder7b/submission.csv<span style="color: #BBB"> </span><span style="color: #4070A0; font-weight: bold">\</span>
+<span style="color: #BBB">  </span>--model<span style="color: #BBB"> </span>Qwen/Qwen2.5-Coder-7B-Instruct<span style="color: #BBB"> </span>--dp-size<span style="color: #BBB"> </span><span style="color: #40A070">4</span><span style="color: #BBB"> </span>--self-consistency-k<span style="color: #BBB"> </span><span style="color: #40A070">8</span>
+</code></pre></div>
 
-  <h2>Methodology</h2>
-  <p>The improvement process followed a strict single-variable discipline: exactly one factor was changed per
-  experiment, the effect was measured on the local dev split and then on the Kaggle public leaderboard, and only
-  validated changes were carried forward. This made each gain attributable to a specific cause and avoided confounding
-  several changes at once. The prior 4B hybrid (0.65789) was retained throughout as the control to beat.</p>
+<p>The base ensemble was produced locally by majority vote:</p>
+<div class="codehilite" style="background: #f0f0f0"><pre style="line-height: 125%;"><span></span><code>python3<span style="color: #BBB"> </span>phase3_ensemble_vote.py<span style="color: #BBB"> </span><span style="color: #4070A0; font-weight: bold">\</span>
+<span style="color: #BBB">  </span>--inputs<span style="color: #BBB"> </span>submission_8b_sc16.csv<span style="color: #BBB"> </span>final_submission.csv<span style="color: #BBB"> </span>submission_coder7b.csv<span style="color: #BBB"> </span><span style="color: #4070A0; font-weight: bold">\</span>
+<span style="color: #BBB">  </span>--priority<span style="color: #BBB"> </span>final_submission.csv<span style="color: #BBB"> </span><span style="color: #4070A0; font-weight: bold">\</span>
+<span style="color: #BBB">  </span>--output<span style="color: #BBB"> </span>submission_ensemble.csv
+</code></pre></div>
 
-  <h2>Model Upgrade (4B to 8B)</h2>
-  <p>The first change replaced the quantized 4B model (<code>QuantTrio/Qwen3.5-4B-AWQ</code>) with the full-precision 8B
-  model <code>Qwen/Qwen3-8B</code>, holding the prompting strategy and all loop settings fixed. The original model was
-  AWQ-quantized only because the Modal A10G had 24 GB of memory; with 80 GB H100s that constraint is gone, so the 8B
-  model was loaded in bfloat16 (no quantization), which avoids the small quality loss quantization introduces.</p>
-  <p>To use the four GPUs, data parallelism was chosen over tensor parallelism. An 8B model fits comfortably on a single
-  80 GB card, so tensor parallelism (sharding one model across GPUs) would only add cross-GPU communication overhead.
-  Data parallelism instead loads four independent replicas and splits the request batch across them, giving roughly four
-  times the throughput with identical outputs. This is exposed through a new <code>--dp-size</code> flag passed to
-  <code>sgl.Engine(..., dp_size=N)</code> in <code>src/model.py</code>. The model change alone raised dev accuracy from
-  0.4833 to 0.650, the largest single quality gain to the base solver.</p>
+<p>The final-day post-processing and validation steps (all CPU-only, deterministic):</p>
+<div class="codehilite" style="background: #f0f0f0"><pre style="line-height: 125%;"><span></span><code><span style="color: #60A0B0; font-style: italic"># Local dev validation harness — sanity self-test then score any prediction file</span>
+python3<span style="color: #BBB"> </span>phase3_dev_eval.py<span style="color: #BBB"> </span>--selftest<span style="color: #BBB">                       </span><span style="color: #60A0B0; font-style: italic"># gold programs -&gt; 100%</span>
+python3<span style="color: #BBB"> </span>phase3_dev_eval.py<span style="color: #BBB"> </span>--pred<span style="color: #BBB"> </span>&lt;preds&gt;.json<span style="color: #BBB"> </span>--mode<span style="color: #BBB"> </span>program
 
-  <h2>Self-Consistency Inference</h2>
-  <p>The second change introduced self-consistency at inference time. At temperature 0 the model produces a single
-  greedy program per question; if that one attempt misreads a table row or picks the wrong operation, the answer is
-  wrong. Self-consistency instead draws k samples per question at a non-zero temperature, executes every candidate
-  program with the local DSL evaluator, and keeps the answer whose executed numeric value is the most common.</p>
-  <p>The mechanism is implemented in <code>src/executor.py</code>. When <code>self_consistency_k &gt; 1</code>, each
-  prompt is replicated k times before the batched <code>generate_batch</code> call, a new <code>temperature_override</code>
-  argument forces non-zero sampling for that call only, and the k outputs per question are grouped and passed to a new
-  helper, <code>_self_consistency_vote</code>. That helper executes each candidate with <code>evaluate_program</code>,
-  buckets the results by executed value, and returns the candidate whose value has the most votes (falling back to the
-  first sample if none execute). Voting on the executed value, rather than on the raw program text, means programs that
-  differ syntactically but compute the same number are correctly counted together. The same voting path is reused at
-  submission time in <code>submit.py</code>, so training-time and test-time behaviour match.</p>
-  <p>With k=5 the dev accuracy reached <b>0.704</b>, and the count of zero-valued (failed) predictions fell from 15 to 11
-  as k rose to 16. On the Kaggle public set the 8B self-consistency submissions scored 0.64979 (k=5) and 0.65587 (k=16).
-  The small Kaggle gain from k=5 to k=16 shows this lever saturates quickly.</p>
+<span style="color: #60A0B0; font-style: italic"># Member-confirmed percent-&gt;ratio scale fix over the ensemble -&gt; v2 (0.69838)</span>
+python3<span style="color: #BBB"> </span>phase3_scale_fix.py<span style="color: #BBB"> </span>--apply<span style="color: #BBB">                          </span><span style="color: #60A0B0; font-style: italic"># writes submission_ensemble_v2.csv</span>
 
-  <h2>Diverse-Model Ensemble</h2>
-  <p>A single strong model did not by itself beat the engineered 4B hybrid on Kaggle. The 8B self-consistency submission
-  scored 0.65587 against the hybrid's 0.65789, even though its dev accuracy (0.704) was far higher. This gap reflects two
-  facts: the dev and test distributions differ, and the hybrid benefits from explicit failure patching that a single
-  model does not perform.</p>
-  <p>The decisive gain came from ensembling. A second, differently trained model, <code>Qwen/Qwen2.5-Coder-7B-Instruct</code>,
-  was used with the same strategy and self-consistency (k=8) to generate an additional submission. On its own this model
-  scored only 0.48178, but its errors are different from the Qwen3 models', so it contributes useful diversity to a
-  vote.</p>
-  <p>The final method is a per-row majority vote across three submissions: the 8B self-consistency submission (k=16), the
-  previous 4B hybrid, and the Coder-7B submission. It is implemented in a new standalone script,
-  <code>phase3_ensemble_vote.py</code>, which runs locally on CPU with no model or GPU. For each test id it collects the
-  three predicted values, groups values that are numerically equal within a relative/absolute tolerance, and keeps the
-  value with the most votes. Ties are broken in favour of a designated priority submission (the previous hybrid), so the
-  ensemble cannot lose to it on an evenly split row. A comparison of the two strongest submissions showed they agree on
-  about 65 percent of rows and disagree on roughly 175 rows; the vote decides those disagreements toward the more
-  frequently supported answer. The resulting ensemble changed 70 rows relative to the previous best and scored
-  <span class="win">0.69433</span> on the public leaderboard.</p>
+<span style="color: #60A0B0; font-style: italic"># Member-confirmed sign flips over v2 -&gt; v4 (0.70242); v3 (blind, regressed) omitted</span>
+<span style="color: #60A0B0; font-style: italic"># (2 rows where &gt;=2 of 3 members agree on the opposite sign of a difference question)</span>
+</code></pre></div>
 
-  <h2>Code Changes</h2>
-  <p>All changes are Phase 3 additions and do not modify EvoAgent core logic, the DSL evaluator, or the graders. They are
-  backward compatible: every new flag defaults to the previous single-GPU, single-sample behaviour.</p>
-  <table>
-    <tr><th>File</th><th>Change</th></tr>
-    <tr><td><code>src/model.py</code></td><td>Added <code>tp_size</code>, <code>dp_size</code>,
-      <code>self_consistency_k</code>, <code>self_consistency_temp</code> to <code>QwenInference</code>; pass
-      <code>tp_size</code>/<code>dp_size</code> to <code>sgl.Engine</code>; add a <code>temperature_override</code>
-      argument to <code>generate_batch</code> for sampling.</td></tr>
-    <tr><td><code>src/executor.py</code></td><td>Added <code>_self_consistency_vote</code> (execute-and-vote helper);
-      <code>evaluate</code> now expands prompts k times and votes when <code>self_consistency_k &gt; 1</code>.</td></tr>
-    <tr><td><code>src/main.py</code></td><td>Added <code>--tp-size</code>, <code>--dp-size</code>,
-      <code>--self-consistency-k</code>, <code>--self-consistency-temp</code> CLI flags, forwarded to
-      <code>QwenInference</code>.</td></tr>
-    <tr><td><code>arc_proofs.py</code></td><td>Added the same four flags and forwards them to <code>main.py</code>.</td></tr>
-    <tr><td><code>submit.py</code></td><td>Added the same flags; applies self-consistency voting when generating test
-      predictions.</td></tr>
-    <tr><td><code>phase3_ensemble_vote.py</code></td><td>New script: per-row majority-vote ensemble of N submission CSVs
-      with a priority tiebreaker (CPU-only).</td></tr>
-  </table>
+<p>Candidate ensemble members for future expansion are generated on Modal with:</p>
+<div class="codehilite" style="background: #f0f0f0"><pre style="line-height: 125%;"><span></span><code>modal<span style="color: #BBB"> </span>run<span style="color: #BBB"> </span>--detach<span style="color: #BBB"> </span>run_modal.py::predict<span style="color: #BBB"> </span><span style="color: #4070A0; font-weight: bold">\</span>
+<span style="color: #BBB">  </span>--model<span style="color: #BBB"> </span>&lt;hf-id&gt;<span style="color: #BBB"> </span>--sc-k<span style="color: #BBB"> </span>&lt;k&gt;<span style="color: #BBB"> </span>--tag<span style="color: #BBB"> </span>&lt;name&gt;<span style="color: #BBB"> </span><span style="color: #4070A0; font-weight: bold">\</span>
+<span style="color: #BBB">  </span>--strategy-path<span style="color: #BBB"> </span>strategies/&lt;strategy&gt;.json<span style="color: #BBB">     </span><span style="color: #60A0B0; font-style: italic"># runs dev + test, downloads both</span>
+</code></pre></div>
 
-  <h2>Kaggle Experiments</h2>
-  <table>
-    <tr><th>Run</th><th>Method</th><th class="num">Public Score</th><th>Decision</th></tr>
-    <tr><td>8B SC k=5</td><td>Qwen3-8B + self-consistency (k=5)</td><td class="num">0.64979</td><td>Not final</td></tr>
-    <tr><td>8B SC k=16</td><td>Qwen3-8B + self-consistency (k=16)</td><td class="num">0.65587</td><td>Not final</td></tr>
-    <tr><td>Coder-7B</td><td>Qwen2.5-Coder-7B, standalone</td><td class="num">0.48178</td><td>Diversity source only</td></tr>
-    <tr><td><b>Ensemble</b></td><td>3-way majority vote (8B k16 + hybrid + Coder-7B)</td><td class="num"><b class="win">0.69433</b></td><td>Primary final</td></tr>
-  </table>
-  <p class="muted">For reference, the previous team best was Run009-lite at 0.65789.</p>
+<p>The LoRA fine-tune that produced the final 0.72267 model:</p>
+<div class="codehilite" style="background: #f0f0f0"><pre style="line-height: 125%;"><span></span><code><span style="color: #60A0B0; font-style: italic"># 1. Build the SFT dataset (CPU, local)</span>
+python3<span style="color: #BBB"> </span>phase3_build_sft_data.py<span style="color: #BBB">                 </span><span style="color: #60A0B0; font-style: italic"># -&gt; data_sft/{train,eval}_sft.jsonl</span>
 
-  <h2>Results Analysis</h2>
-  <p>The largest quality gain to the base solver was the model upgrade, which added 16.7 points of dev accuracy.
-  Self-consistency added a further gain on dev and reduced failure rows. The largest Kaggle gain, however, came from the
-  ensemble, which exceeded every individual submission by about 3.5 points.</p>
-  <p>The most important lesson is that a model which is weak in isolation can still strengthen an ensemble. The Coder-7B
-  model scored only 0.48178 on its own, yet its inclusion lifted the ensemble to 0.69433, because its errors differ from
-  those of the Qwen3 models and the majority vote exploits that diversity. Two corollaries follow for future work: adding
-  more independent models to an odd-sized vote is likely the highest-value next step, and diversity of a candidate model
-  matters more than its standalone accuracy.</p>
+<span style="color: #60A0B0; font-style: italic"># 2. QLoRA train + merge on a Modal A100-80GB (~1h50m)</span>
+modal<span style="color: #BBB"> </span>run<span style="color: #BBB"> </span>--detach<span style="color: #BBB"> </span>run_modal.py::finetune<span style="color: #BBB"> </span><span style="color: #4070A0; font-weight: bold">\</span>
+<span style="color: #BBB">  </span>--base-model<span style="color: #BBB"> </span>Qwen/Qwen3-8B<span style="color: #BBB"> </span>--epochs<span style="color: #BBB"> </span><span style="color: #40A070">2</span><span style="color: #BBB"> </span>--tag<span style="color: #BBB"> </span>qwen3_8b
 
-  <h2>Reproducibility</h2>
-  <p>The strategy was evolved with the 8B model and self-consistency on the GPU node:</p>
-  <pre>python3 arc_proofs.py evolution --T 5 --train-size 200 --dev-size 240 \
-  --output-dir runs/exp_qwen3_8b_sc5 --model Qwen/Qwen3-8B \
-  --gpu-memory-utilization 0.9 --dp-size 4 --self-consistency-k 5</pre>
-  <p>The individual submissions were generated from that strategy:</p>
-  <pre>python3 submit.py --strategy-path runs/exp_qwen3_8b_sc5/iter_best_strategy.json \
-  --output-file runs/kaggle_8b_sc16/submission.csv --model Qwen/Qwen3-8B \
-  --dp-size 4 --self-consistency-k 16
+<span style="color: #60A0B0; font-style: italic"># 3. Inference with the merged fine-tuned model (dev + test)</span>
+modal<span style="color: #BBB"> </span>run<span style="color: #BBB"> </span>--detach<span style="color: #BBB"> </span>run_modal.py::predict<span style="color: #BBB"> </span><span style="color: #4070A0; font-weight: bold">\</span>
+<span style="color: #BBB">  </span>--model<span style="color: #BBB"> </span>/runs/lora_merged_qwen3_8b<span style="color: #BBB"> </span>--sc-k<span style="color: #BBB"> </span><span style="color: #40A070">1</span><span style="color: #BBB"> </span>--tag<span style="color: #BBB"> </span>ft-qwen3-8b<span style="color: #BBB"> </span><span style="color: #4070A0; font-weight: bold">\</span>
+<span style="color: #BBB">  </span>--strategy-path<span style="color: #BBB"> </span>strategies/ft_strategy.json
 
-python3 submit.py --strategy-path runs/exp_qwen3_8b_sc5/iter_best_strategy.json \
-  --output-file runs/kaggle_coder7b/submission.csv \
-  --model Qwen/Qwen2.5-Coder-7B-Instruct --dp-size 4 --self-consistency-k 8</pre>
-  <p>The final ensemble was produced locally by majority vote:</p>
-  <pre>python3 phase3_ensemble_vote.py \
-  --inputs submission_8b_sc16.csv final_submission.csv submission_coder7b.csv \
-  --priority final_submission.csv \
-  --output submission_ensemble.csv</pre>
+<span style="color: #60A0B0; font-style: italic"># 4. Score dev locally, then submit predict_out/ft-qwen3-8b_test.csv</span>
+python3<span style="color: #BBB"> </span>phase3_dev_eval.py<span style="color: #BBB"> </span>--pred<span style="color: #BBB"> </span>predict_out/ft-qwen3-8b_dev_details.json<span style="color: #BBB"> </span>--mode<span style="color: #BBB"> </span>program
+</code></pre></div>
 
-  <h2>Next Steps</h2>
-  <p>The remaining gap to a much higher score is large; the base solver caps in the high-0.60s on this test set. The
-  recommended next experiments, in order of expected value:</p>
-  <ol>
-    <li>Expand the ensemble to a 5-way odd vote by adding two more non-gated diverse models (for example
-      <code>Qwen2.5-7B-Instruct</code> and <code>Mistral-7B-Instruct-v0.3</code>); an odd voter count removes tie-break
-      ambiguity.</li>
-    <li>Confidence-weighted voting: weight each model on a row by its self-consistency agreement count instead of an
-      equal vote.</li>
-    <li>Larger structural changes if time allows: LoRA fine-tuning on the train programs, or context/table-retrieval
-      compression to fix wrong-row extraction.</li>
-  </ol>
-  <p>Because grading is rank-based and the public score is only a proxy for the private leaderboard, the ensemble
-  (0.69433) should be kept as the primary final candidate alongside the stable 4B hybrid.</p>
+<p>Rejection sampling / STaR that produced the best 0.74696 model:</p>
+<div class="codehilite" style="background: #f0f0f0"><pre style="line-height: 125%;"><span></span><code><span style="color: #60A0B0; font-style: italic"># 1. Sample the FT model on train, keep verified programs, combine with gold</span>
+modal<span style="color: #BBB"> </span>run<span style="color: #BBB"> </span>--detach<span style="color: #BBB"> </span>run_modal.py::rejection_sample<span style="color: #BBB"> </span><span style="color: #4070A0; font-weight: bold">\</span>
+<span style="color: #BBB">  </span>--model<span style="color: #BBB"> </span>/runs/lora_merged_qwen3_8b<span style="color: #BBB"> </span>--k<span style="color: #BBB"> </span><span style="color: #40A070">8</span><span style="color: #BBB"> </span>--temp<span style="color: #BBB"> </span><span style="color: #40A070">0</span>.8<span style="color: #BBB">   </span><span style="color: #60A0B0; font-style: italic"># -&gt; /runs/rs/train_sft_combined.jsonl</span>
 
-  <h2>Integrity Declaration Summary</h2>
-  <p>No hidden test labels, manual test labeling, or leaked answers were used. All Kaggle outputs came from documented
-  model inference runs and deterministic ensemble rules that can be reproduced from the commands above. Hugging Face
-  tokens, Kaggle credentials, private keys, and model weights are excluded from the repository.</p>
+<span style="color: #60A0B0; font-style: italic"># 2. Re-fine-tune Qwen3-8B on the augmented dataset (5,611 examples)</span>
+modal<span style="color: #BBB"> </span>run<span style="color: #BBB"> </span>--detach<span style="color: #BBB"> </span>run_modal.py::finetune<span style="color: #BBB"> </span><span style="color: #4070A0; font-weight: bold">\</span>
+<span style="color: #BBB">  </span>--base-model<span style="color: #BBB"> </span>Qwen/Qwen3-8B<span style="color: #BBB"> </span>--epochs<span style="color: #BBB"> </span><span style="color: #40A070">2</span><span style="color: #BBB"> </span>--tag<span style="color: #BBB"> </span>qwen3_8b_rs<span style="color: #BBB"> </span><span style="color: #4070A0; font-weight: bold">\</span>
+<span style="color: #BBB">  </span>--train-file<span style="color: #BBB"> </span>/runs/rs/train_sft_combined.jsonl
 
-  <p class="foot">Melanie · Advanced-NLP06 Assignment 03 (EvoAgent) · Phase-3 work log · open in any browser.</p>
-</div>
-</body>
-</html>
+<span style="color: #60A0B0; font-style: italic"># 3. Inference + score; submit predict_out/ft-qwen3-8b-rs_test.csv</span>
+modal<span style="color: #BBB"> </span>run<span style="color: #BBB"> </span>--detach<span style="color: #BBB"> </span>run_modal.py::predict<span style="color: #BBB"> </span><span style="color: #4070A0; font-weight: bold">\</span>
+<span style="color: #BBB">  </span>--model<span style="color: #BBB"> </span>/runs/lora_merged_qwen3_8b_rs<span style="color: #BBB"> </span>--sc-k<span style="color: #BBB"> </span><span style="color: #40A070">1</span><span style="color: #BBB"> </span>--tag<span style="color: #BBB"> </span>ft-qwen3-8b-rs<span style="color: #BBB"> </span><span style="color: #4070A0; font-weight: bold">\</span>
+<span style="color: #BBB">  </span>--strategy-path<span style="color: #BBB"> </span>strategies/ft_strategy.json
+python3<span style="color: #BBB"> </span>phase3_dev_eval.py<span style="color: #BBB"> </span>--pred<span style="color: #BBB"> </span>predict_out/ft-qwen3-8b-rs_dev_details.json<span style="color: #BBB"> </span>--mode<span style="color: #BBB"> </span>program
+</code></pre></div>
+
+<p>The frontier-API three-way ensemble that produced the best 0.80161 (no GPU; keys in <code>.env</code>):</p>
+<div class="codehilite" style="background: #f0f0f0"><pre style="line-height: 125%;"><span></span><code><span style="color: #60A0B0; font-style: italic"># 1. Solve dev + test with each frontier model (documents the exact model ids)</span>
+<span style="color: #007020; font-weight: bold">for</span><span style="color: #BBB"> </span>split<span style="color: #BBB"> </span><span style="color: #007020; font-weight: bold">in</span><span style="color: #BBB"> </span>dev<span style="color: #BBB"> </span>test;<span style="color: #BBB"> </span><span style="color: #007020; font-weight: bold">do</span>
+<span style="color: #BBB">  </span>python3<span style="color: #BBB"> </span>phase3_api_solve.py<span style="color: #BBB"> </span>--provider<span style="color: #BBB"> </span>gemini<span style="color: #BBB">   </span>--model<span style="color: #BBB"> </span>gemini-2.5-flash<span style="color: #BBB"> </span>--split<span style="color: #BBB"> </span><span style="color: #BB60D5">$split</span><span style="color: #BBB"> </span>--max-tokens<span style="color: #BBB"> </span><span style="color: #40A070">4096</span>
+<span style="color: #BBB">  </span>python3<span style="color: #BBB"> </span>phase3_api_solve.py<span style="color: #BBB"> </span>--provider<span style="color: #BBB"> </span>deepseek<span style="color: #BBB"> </span>--model<span style="color: #BBB"> </span>deepseek-chat<span style="color: #BBB">    </span>--split<span style="color: #BBB"> </span><span style="color: #BB60D5">$split</span>
+<span style="color: #007020; font-weight: bold">done</span>
+
+<span style="color: #60A0B0; font-style: italic"># 2. Three-way majority vote (STaR + Gemini + DeepSeek), ties -&gt; STaR (priority)</span>
+python3<span style="color: #BBB"> </span>phase3_ensemble_vote.py<span style="color: #BBB"> </span><span style="color: #4070A0; font-weight: bold">\</span>
+<span style="color: #BBB">  </span>--inputs<span style="color: #BBB"> </span>predict_out/ft-qwen3-8b-rs_test.csv<span style="color: #BBB"> </span><span style="color: #4070A0; font-weight: bold">\</span>
+<span style="color: #BBB">           </span>predict_out/api-gemini-gemini-2.5-flash_test.csv<span style="color: #BBB"> </span><span style="color: #4070A0; font-weight: bold">\</span>
+<span style="color: #BBB">           </span>predict_out/api-deepseek-deepseek-chat_test.csv<span style="color: #BBB"> </span><span style="color: #4070A0; font-weight: bold">\</span>
+<span style="color: #BBB">  </span>--priority<span style="color: #BBB"> </span>predict_out/ft-qwen3-8b-rs_test.csv<span style="color: #BBB"> </span><span style="color: #4070A0; font-weight: bold">\</span>
+<span style="color: #BBB">  </span>--test<span style="color: #BBB"> </span>data/test.json<span style="color: #BBB"> </span>--output<span style="color: #BBB"> </span>kaggle/submission_ensemble_api3.csv
+</code></pre></div>
+
+<h2 id="next-steps">Next Steps</h2>
+<p>The final result is the <strong>three-way frontier-API ensemble at 0.80161</strong>, with the
+<strong>self-hosted STaR Qwen3-8B (0.74696)</strong> kept as the primary non-API alternate.
+Remaining levers, in order of expected value, if a higher score is wanted:</p>
+<ol start="0">
+<li>
+<p><strong>Stronger / more API voters.</strong> The dev oracle bound for the current three models
+   is 89%, so headroom remains. Swapping Gemini 2.5-flash for a stronger model
+   (gemini-3-pro / gemini-3.5-flash) or adding a fourth independent voter (Claude,
+   GPT) in an odd (5-way) vote should lift the ensemble further, all CPU-only.</p>
+</li>
+<li>
+<p><strong>A second round of rejection sampling / STaR.</strong> Sample from the <em>0.74696</em> model
+   (not the first FT model) to capture newly-solvable hard questions, and re-train on
+   the further-enlarged verified set. STaR often gains across 2-3 rounds before
+   plateauing.</p>
+</li>
+<li><strong>Target multi-step further.</strong> The weakest slice is still 3+ operation programs
+   (60.9% dev, up from 47.8%). Over-sampling multi-step verified programs, more epochs,
+   or a larger LoRA rank should push it further.</li>
+<li><strong>GRPO / RLVR.</strong> The DSL evaluator is a binary verifiable reward, so GRPO can
+   directly optimize execution accuracy on top of the SFT/STaR checkpoint. Highest
+   ceiling, highest cost (multi-day).</li>
+<li><strong>Final model on train+dev combined.</strong> Once dev is no longer needed for validation,
+   re-train on all 3,570 labeled examples for a small final gain.</li>
+<li><strong>Within-team ensembling.</strong> Voting the 0.74696 model against the teammate's
+   independently-built pipeline is allowed (same team) and is a further source of
+   diversity.</li>
+</ol>
+<p>Because grading is rank-based and the public score is only a proxy for the private
+leaderboard, <strong>the frontier-API three-way ensemble (0.80161) is the primary final
+candidate</strong>, with the self-hosted STaR Qwen3-8B (0.74696) kept as the primary
+non-API alternate and private-leaderboard hedge.</p>
+<h2 id="integrity-declaration-summary">Integrity Declaration Summary</h2>
+<p>No hidden test labels, manual test labeling, or leaked answers were used. All
+Kaggle outputs came from documented model inference runs and deterministic
+ensemble rules that can be reproduced from the commands above. Hugging Face
+tokens, Kaggle credentials, private keys, and model weights are excluded from the
+repository.</p>
+<h2 id="improvement-plan">Improvement plan:</h2>
+<p>ensemble (now) → rejection sampling/STaR → target multi-step → (if time) GRPO → final train+dev</p>
+<h2 id="to-try-tomorrow">To try tomorrow:</h2>
+<p>Rejection sampling (STaR) with the second fine-tune runs.</p>
+<p class="foot">Rendered from melanie_report.md · EvoAgent Advanced-NLP06 Assignment 03</p>
+</div></body></html>

@@ -1,0 +1,27 @@
+Solving 584 dev rows with deepseek/deepseek-chat (concurrency 8 sc-k=5@T0.7)...
+  25/584
+  50/584
+  75/584
+  100/584
+  125/584
+  150/584
+  175/584
+  200/584
+  225/584
+  250/584
+  275/584
+  300/584
+  325/584
+  350/584
+  375/584
+  400/584
+  425/584
+  450/584
+  475/584
+  500/584
+  525/584
+  550/584
+  575/584
+
+DEV accuracy: 394/584 = 67.47%   (api-deepseek-deepseek-chat-sc5)
+wrote predict_out/api-deepseek-deepseek-chat-sc5_dev.csv

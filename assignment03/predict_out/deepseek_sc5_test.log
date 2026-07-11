@@ -1,0 +1,21 @@
+Solving 494 test rows with deepseek/deepseek-chat (concurrency 8 sc-k=5@T0.7)...
+  25/494
+  50/494
+  75/494
+  100/494
+  125/494
+  150/494
+  175/494
+  200/494
+  225/494
+  250/494
+  275/494
+  300/494
+  325/494
+  350/494
+  375/494
+  400/494
+  425/494
+  450/494
+  475/494
+wrote predict_out/api-deepseek-deepseek-chat-sc5_test.csv
